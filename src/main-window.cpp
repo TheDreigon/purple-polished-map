@@ -2061,7 +2061,7 @@ bool Main_Window::save_tileset() {
 	else if (tileset.other_modified_before(b_filename)) {
 		mod_basename = fl_filename_name(b_filename);
 	}
-	else if (tileset.other_modified_before(a_filename)) {
+	else if (tileset.other_modified_after(a_filename)) {
 		mod_basename = fl_filename_name(a_filename);
 	}
 	if (mod_basename) {

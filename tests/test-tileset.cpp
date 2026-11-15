@@ -145,6 +145,27 @@ TEST(tileset_reads_png_graphics) {
 	CHECK(!tileset.modified());
 }
 
+TEST(tileset_tracks_changes_to_each_part_of_a_split_tileset) {
+	// A tileset can be split into a main image and an "after" image (a name like "kanto.,johto").
+	// Saving checks each part for changes by another program with its own time; the "after"
+	// part used to be checked with the time of the (here missing) "before" part, so it always
+	// looked changed.
+	std::string dir = test::temp_dir();
+	std::string main_png = test::join(dir, "kanto.png"), after_png = test::join(dir, "johto.png");
+	test::copy_file(test::example_path("gfx/tilesets/kanto.png"), main_png);
+	test::copy_file(test::example_path("gfx/tilesets/johto.png"), after_png);
+	Config::allow_256_tiles(true);
+
+	Tileset tileset;
+	REQUIRE(tileset.read_graphics(main_png.c_str(), NULL, after_png.c_str(), Palettes::DAY) == Tileset::Result::GFX_OK);
+	CHECK(!tileset.other_modified(main_png.c_str()));
+	CHECK(!tileset.other_modified_after(after_png.c_str()));
+
+	test::make_newer(after_png);
+	CHECK(tileset.other_modified_after(after_png.c_str()));
+	CHECK(!tileset.other_modified(main_png.c_str()));
+}
+
 TEST(tileset_reports_missing_graphics) {
 	Tileset tileset;
 	std::string missing = test::join(test::temp_dir(), "missing.png");
