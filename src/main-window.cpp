@@ -1258,10 +1258,16 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 		return;
 	}
 
+	// Every caller has already asked whether to discard the unsaved changes, so discard all of
+	// them; a second "unsaved changes" prompt here could be canceled and leave the old map open
 	_map.modified(false);
 	_map_events.modified(false);
 	_metatileset.modified(false);
+	_metatileset.tileset().modified(false);
+	_metatileset.tileset().modified_roof(false);
 	close_cb(NULL, this);
+	// Never load a map on top of another one
+	if (_map.size()) { return; }
 
 	_directory = directory;
 	if (filename) {

@@ -334,6 +334,22 @@ TEST(metatileset_reads_blocks_of_16_tiles) {
 	CHECK(!metatileset.modified());
 }
 
+TEST(metatileset_read_twice_does_not_add_the_blocks_again) {
+	// Opening a map on top of another one used to read the new blockset after the old one,
+	// and a later save wrote both into the new blockset file
+	Metatileset metatileset;
+	Tileset_Files files = example_tileset("kanto");
+	load_tileset(metatileset, files);
+	REQUIRE(metatileset.size() == 128);
+
+	CHECK(metatileset.read_metatiles(files.metatiles.c_str()) == Metatileset::Result::META_OK);
+	CHECK_EQ(metatileset.size(), (size_t)128);
+
+	std::string saved = test::join(test::temp_dir(), "metatiles.bin");
+	CHECK(metatileset.write_metatiles(saved.c_str()));
+	CHECK(test::read_file(saved) == test::read_file(files.metatiles));
+}
+
 TEST(metatileset_writes_back_the_same_bytes) {
 	for (const char *name : {"kanto", "johto", "johto_modern"}) {
 		Metatileset metatileset;

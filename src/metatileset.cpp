@@ -125,6 +125,9 @@ Metatileset::Result Metatileset::read_metatiles(const char *f) {
 	FILE *file = fl_fopen(f, "rb");
 	if (file == NULL) { return (_result = Result::META_BAD_FILE); } // cannot load file
 
+	// Replace any blocks already read, never add the file's blocks after them
+	_num_metatiles = 0;
+
 	uchar data[METATILE_SIZE * METATILE_SIZE] = {};
 	while (!feof(file)) {
 		size_t c = fread(data, 1, METATILE_SIZE * METATILE_SIZE, file);
