@@ -156,7 +156,7 @@ int64_t file_modified(const char *f) {
 void open_ifstream(std::ifstream &ifs, const char *f) {
 #ifdef _WIN32
 	wchar_t wf[FL_PATH_MAX] = {};
-	fl_utf8towc(f, strlen(f), wf, sizeof(wf));
+	fl_utf8towc(f, (unsigned)strlen(f), wf, _countof(wf));
 	ifs.open(wf);
 #else
 	ifs.open(f);

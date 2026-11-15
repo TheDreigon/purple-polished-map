@@ -25,7 +25,7 @@ int Directory_Chooser::show() {
 	_filename = NULL;
 
 	wchar_t wtitle[FL_PATH_MAX] = {};
-	fl_utf8towc(_title, strlen(_title), wtitle, sizeof(wtitle));
+	fl_utf8towc(_title, (unsigned)strlen(_title), wtitle, _countof(wtitle));
 	_fod_ptr->SetTitle(wtitle);
 
 	FILEOPENDIALOGOPTIONS fod_opts;
@@ -46,9 +46,11 @@ int Directory_Chooser::show() {
 	hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
 	if (!SUCCEEDED(hr)) { pItem->Release(); return -1; }
 
-	size_t len = wcslen(pszFilePath);
-	char *filename = new char[len + 1];
-	fl_utf8fromwc(filename, len + 1, pszFilePath, len);
+	// A character can take up to three bytes in UTF-8, so ask how many the path needs
+	unsigned len = (unsigned)wcslen(pszFilePath);
+	unsigned n = fl_utf8fromwc(NULL, 0, pszFilePath, len);
+	char *filename = new char[n + 1];
+	fl_utf8fromwc(filename, n + 1, pszFilePath, len);
 	_filename = filename;
 
 	CoTaskMemFree(pszFilePath);
