@@ -152,6 +152,47 @@ TEST(map_remembers_at_most_100_edits) {
 	CHECK_EQ(map.block((size_t)0)->id(), 5);
 }
 
+// What the main window does on File > Save: the file is only written if the map was modified
+static void save_like_the_window(Map &map, const std::string &f) {
+	if (map.modified()) {
+		REQUIRE(map.write_blocks(f.c_str()));
+		map.modified(false);
+	}
+}
+
+TEST(map_saves_an_undo_made_after_a_save) {
+	// The bug: edit, save, undo, save again. The second save said "Saved!" but wrote nothing,
+	// because Undo did not count as a modification, so the file kept the edit that had been undone.
+	Map map;
+	std::string f = load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+
+	map.remember();
+	map.block((size_t)0)->id(9);
+	map.modified(true);
+	save_like_the_window(map, f);
+	CHECK_EQ(test::read_file(f), "\x09\x02\x03\x04");
+
+	map.undo();
+	CHECK(map.modified());
+	save_like_the_window(map, f);
+	CHECK_EQ(test::read_file(f), "\x01\x02\x03\x04");
+
+	// The same goes for Redo
+	map.redo();
+	CHECK(map.modified());
+	save_like_the_window(map, f);
+	CHECK_EQ(test::read_file(f), "\x09\x02\x03\x04");
+}
+
+TEST(map_stays_unmodified_when_there_is_nothing_to_undo) {
+	Map map;
+	load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+
+	map.undo();
+	map.redo();
+	CHECK(!map.modified());
+}
+
 TEST(map_clear_forgets_everything) {
 	Map map;
 	load_small_map(map, 2, 2, "\x01\x02\x03\x04");

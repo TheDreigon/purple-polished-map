@@ -81,6 +81,9 @@ void Map::undo() {
 		block(i)->id(prev.ids[i]);
 	}
 	_history.pop_back();
+
+	// The blocks no longer match the saved file, even if the map was just saved
+	_modified = true;
 }
 
 void Map::redo() {
@@ -98,6 +101,8 @@ void Map::redo() {
 		block(i)->id(next.ids[i]);
 	}
 	_future.pop_back();
+
+	_modified = true;
 }
 
 Map::Result Map::read_blocks(const char *f) {
