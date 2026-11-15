@@ -2549,6 +2549,26 @@ void Main_Window::save_as_cb(Fl_Widget *, Main_Window *mw) {
 		return;
 	}
 
+	// The events on screen were loaded from a file. Unless that is also where the events of
+	// the map being saved belong, they are the events of another map and must not stay attached
+	// to this one, or a later Save would write them back to the other map's file.
+	char events_path[FL_PATH_MAX] = {};
+	Config::map_events_path(events_path, directory, filename);
+	bool other_maps_events = mw->_map_events.loaded() && !same_path(mw->_asm_file.c_str(), events_path);
+	if (other_maps_events && mw->_map_events.modified()) {
+		const char *asm_basename = fl_filename_name(mw->_asm_file.c_str());
+		std::string msg = "The events have been edited!\n\n";
+		msg = msg + "They belong to " + asm_basename + ", not to " + basename + ",\n"
+			"and their changes will be lost.\n\n"
+			"Save the map as " + basename + " anyway?";
+		mw->_unsaved_dialog->message(msg);
+		mw->_unsaved_dialog->show(mw);
+		if (mw->_unsaved_dialog->canceled()) { return; }
+	}
+
+	std::string old_directory(mw->_directory), old_blk_file(mw->_blk_file);
+	std::string old_label(mw->label() ? mw->label() : "");
+
 	mw->_directory.assign(directory);
 	mw->_blk_file.assign(filename);
 
@@ -2556,11 +2576,28 @@ void Main_Window::save_as_cb(Fl_Widget *, Main_Window *mw) {
 	sprintf(buffer, PROGRAM_NAME " - %s", basename);
 	mw->copy_label(buffer);
 
+	// save_map() also returns true when the user declines to overwrite a file that another
+	// program changed; the map only stops being modified when it has really been written
+	bool written = mw->save_map(true) && !mw->_map.modified();
+	if (!written) {
+		mw->_directory = old_directory;
+		mw->_blk_file = old_blk_file;
+		mw->copy_label(old_label.c_str());
+		return;
+	}
+
 	strcpy(buffer, basename);
 	fl_filename_setext(buffer, FL_PATH_MAX, ".png");
 	mw->_png_chooser->preset_file(buffer);
 
-	mw->save_map(true);
+	if (other_maps_events) {
+		mw->unload_events();
+		if (mw->auto_load_events() && file_exists(events_path)) {
+			mw->load_events(events_path);
+		}
+		mw->update_active_controls();
+		mw->redraw();
+	}
 }
 
 void Main_Window::save_map_cb(Fl_Widget *w, Main_Window *mw) {
