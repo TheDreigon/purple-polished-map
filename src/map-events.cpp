@@ -97,7 +97,9 @@ Map_Events::Result Map_Events::read_events(const char *f) {
 
 		if (token == "warp") {
 			// warp is a script command in pokecrystal, but with 2 commas, not 3
-			std::string tail(lss.str().substr((size_t)lss.tellg()));
+			// tellg() is -1 when nothing follows the macro name
+			std::streampos pos = lss.tellg();
+			std::string tail = pos == std::streampos(-1) ? "" : lss.str().substr((size_t)pos);
 			remove_comment(tail);
 			if (std::count(RANGE(tail), ',') != 3) {
 				prelude += line + '\n';

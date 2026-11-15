@@ -141,6 +141,22 @@ TEST(events_reads_old_pokered_events) {
 	CHECK_EQ(events.event(5)->event_y(), 5);
 }
 
+TEST(events_reads_a_line_with_only_the_word_warp) {
+	// Such a line used to throw std::out_of_range and close the program when the map was opened
+	std::string f = test::join(test::temp_dir(), "BareWarp.asm");
+	std::string text =
+		"BareWarp_Script:\n"
+		"\twarp\n"
+		"\twarp_event  2,  7, TEST_TOWN, 1\n";
+	test::write_file(f, text);
+
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+	CHECK_EQ(events.size(), (size_t)1);
+	CHECK(events.write_event_script(f.c_str()));
+	CHECK_EQ(test::read_file(f), text);
+}
+
 TEST(events_reports_a_missing_file) {
 	std::string missing = test::join(test::temp_dir(), "Missing.asm");
 	Map_Events events;
