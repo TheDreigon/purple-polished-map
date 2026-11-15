@@ -141,6 +141,109 @@ TEST(events_reads_old_pokered_events) {
 	CHECK_EQ(events.event(5)->event_y(), 5);
 }
 
+TEST(events_adds_an_event_after_the_last_of_its_kind) {
+	// Right-clicking an empty spot in Events Mode adds an event (upstream issue 89)
+	std::string f = working_copy("TestHouse.asm");
+	std::string expected = test::read_file(f);
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+	CHECK(events.can_add_event("warp_event"));
+	CHECK(events.can_add_event("coord_event"));
+
+	Event *e = events.add_event("warp_event", 4, 5, ", TEST_HOUSE, 1");
+	REQUIRE(e != NULL);
+	CHECK(events.modified());
+	CHECK_EQ(events.size(), (size_t)8);
+	CHECK(events.event(3) == e);
+	CHECK_EQ(e->event_x(), 4);
+	CHECK_EQ(e->event_y(), 5);
+	// It is the fourth warp; it leads to the first warp of this same map
+	CHECK(e->warp_to() == events.event(0));
+
+	CHECK(events.write_event_script(f.c_str()));
+	replace(expected, "\twarp_event  9,  0, TEST_HOUSE, 1\n", "\twarp_event  9,  0, TEST_HOUSE, 1\n\twarp_event  4,  5, TEST_HOUSE, 1\n");
+	CHECK_EQ(test::read_file(f), expected);
+}
+
+TEST(events_adds_the_first_event_of_a_kind_after_its_header) {
+	std::string f = test::join(test::temp_dir(), "Empty.asm");
+	std::string text =
+		"Empty_MapEvents:\n"
+		"\tdb 0, 0 ; filler\n"
+		"\n"
+		"\tdef_warp_events\n"
+		"\twarp_event  3,  7, TEST_TOWN, 1\n"
+		"\n"
+		"\tdef_coord_events\n"
+		"\n"
+		"\tdef_bg_events\n"
+		"\n"
+		"\tdef_object_events\n";
+	test::write_file(f, text);
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+
+	// The header is in the text after the last event
+	REQUIRE(events.add_event("coord_event", 1, 2, ", 0, EmptyNewScript") != NULL);
+	REQUIRE(events.add_event("object_event", 5, 6, ", SPRITE_CHRIS, SPRITEMOVEDATA_STILL, 0, 0, -1, -1, 0, OBJECTTYPE_SCRIPT, 0, EmptyNewScript, -1") != NULL);
+	// The header is now in the text before an event added just above
+	REQUIRE(events.add_event("bg_event", 8, 9, ", BGEVENT_READ, EmptyNewScript") != NULL);
+	CHECK(events.write_event_script(f.c_str()));
+	CHECK_EQ(test::read_file(f),
+		"Empty_MapEvents:\n"
+		"\tdb 0, 0 ; filler\n"
+		"\n"
+		"\tdef_warp_events\n"
+		"\twarp_event  3,  7, TEST_TOWN, 1\n"
+		"\n"
+		"\tdef_coord_events\n"
+		"\tcoord_event  1,  2, 0, EmptyNewScript\n"
+		"\n"
+		"\tdef_bg_events\n"
+		"\tbg_event  8,  9, BGEVENT_READ, EmptyNewScript\n"
+		"\n"
+		"\tdef_object_events\n"
+		"\tobject_event  5,  6, SPRITE_CHRIS, SPRITEMOVEDATA_STILL, 0, 0, -1, -1, 0, OBJECTTYPE_SCRIPT, 0, EmptyNewScript, -1\n");
+}
+
+TEST(events_removes_an_added_event_without_a_trace) {
+	// Canceling the editor that opens for a new event takes the event back
+	std::string f = test::join(test::temp_dir(), "Empty.asm");
+	std::string text =
+		"\tdef_warp_events\n"
+		"\twarp_event  3,  7, TEST_TOWN, 1\n"
+		"\n"
+		"\tdef_bg_events\n"
+		"\n"
+		"\tdef_object_events\n";
+	test::write_file(f, text);
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+
+	Event *warp = events.add_event("warp_event", 1, 1, ", LAST_MAP, 1");
+	Event *sign = events.add_event("bg_event", 2, 2, ", TEXT_EMPTY_NEW");
+	REQUIRE(warp != NULL);
+	REQUIRE(sign != NULL);
+	events.remove_event(sign);
+	delete sign;
+	events.remove_event(warp);
+	delete warp;
+	CHECK_EQ(events.size(), (size_t)1);
+	CHECK(events.write_event_script(f.c_str()));
+	CHECK_EQ(test::read_file(f), text);
+}
+
+TEST(events_cannot_add_events_to_an_old_style_file) {
+	// Files without def_*_events headers (old pokered) are left to be edited by hand
+	std::string f = working_copy("OldTown.asm");
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+	CHECK(!events.can_add_event("warp_event"));
+	CHECK(!events.can_add_event("object_event"));
+	CHECK(events.add_event("warp_event", 1, 1, ", LAST_MAP, 1") == NULL);
+	CHECK(!events.can_add_event("not_an_event"));
+}
+
 TEST(events_reads_a_line_with_only_the_word_warp) {
 	// Such a line used to throw std::out_of_range and close the program when the map was opened
 	std::string f = test::join(test::temp_dir(), "BareWarp.asm");

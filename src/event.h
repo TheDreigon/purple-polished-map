@@ -44,6 +44,8 @@ public:
 	Event(size_t line, const std::string &prelude, const std::string &macro, Event_Meta meta, const std::string &tip_, int warp_id);
 	inline size_t line(void) const { return _line; }
 	inline std::string prelude(void) const { return _prelude; }
+	inline void prelude(const std::string &p) { _prelude = p; }
+	inline std::string macro(void) const { return _macro; }
 	inline int16_t event_x(void) const { return _event_x; }
 	inline int16_t event_y(void) const { return _event_y; }
 	inline void coords(int16_t event_x, int16_t event_y) { _event_x = event_x; _event_y = event_y; }

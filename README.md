@@ -12,6 +12,7 @@ All credit for Polished Map goes to Rangi and its contributors. The license ([LG
 - Moving the mouse over the map no longer lags on Windows 11 (fix by dannye, from [Polished Map pull request 112](https://github.com/Rangi42/polished-map/pull/112)).
 - **build-windows.bat** builds it on Windows from the command line, with only the Build Tools for Visual Studio 2022.
 - It has its own name, version, executable (**purple-polished-map.exe**) and settings file, so it can be used side by side with the original without sharing settings.
+- Right-clicking an empty spot in Events Mode adds a new event.
 - It has [automated tests](tests/README.md) for the code that reads and writes maps, blocksets, tilesets and events.
 
 More fixes are on the way. Each one is a separate commit that explains what it changes.
@@ -36,7 +37,7 @@ Browse the menu items, toolbar buttons, and Help dialog to learn how to use it. 
 |--------------------------|---------------|-------------------|---------------------|--------------|
 | **Click/drag**           | Place block   | Move event        | Place tile          | Place pixel  |
 | **Middle drag**          | Scroll        | Scroll            |                     |              |
-| **Right-click**          | Select block  | Edit event        | Select tile         | Select hue   |
+| **Right-click**          | Select block  | Edit event (on an empty spot: add one) | Select tile         | Select hue   |
 | **Double-click**         |               | Open .asm file    |                     |              |
 | **Ctrl+click**           | Replace block |                   | Place 2x2 tiles     | Replace hue  |
 | **Shift+click**          | Flood fill    | Follow warp event | Place 2/2 tiles     | Flood fill   |

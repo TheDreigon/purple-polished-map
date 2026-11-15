@@ -40,6 +40,9 @@ public:
 	void resize_events(int x, int y, int s) const;
 	void refresh_warps(void);
 	Result read_events(const char *f);
+	bool can_add_event(const std::string &macro) const;
+	Event *add_event(const std::string &macro, int16_t x, int16_t y, const std::string &rest);
+	void remove_event(Event *e);
 public:
 	static const char *error_message(Result result);
 	bool write_event_script(const char *f);

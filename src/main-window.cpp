@@ -1559,6 +1559,79 @@ void Main_Window::unload_events() {
 	_asm_file = "";
 }
 
+// Right-clicking an empty spot in Events Mode offers to add an event there. The new event is
+// written with pret's current macros (pokered's in monochrome mode, pokecrystal's otherwise),
+// with placeholder values that the editor, which opens right away, lets the user change.
+void Main_Window::add_event_at(Block *b) {
+	if (!_map_events.loaded()) {
+		std::string msg = "There is no event script loaded!\n\n"
+			"Load one with Data > Load Event Script.";
+		_error_dialog->message(msg);
+		_error_dialog->show(this);
+		return;
+	}
+
+	int16_t ex = (int16_t)(b->col() * 2 + (b->right_half() ? 1 : 0));
+	int16_t ey = (int16_t)(b->row() * 2 + (b->bottom_half() ? 1 : 0));
+
+	char map_name[FL_PATH_MAX] = {}, map_constant[FL_PATH_MAX] = {};
+	remove_dot_ext(_asm_file.c_str(), map_name);
+	Config::map_constant(map_constant, map_name);
+	std::string name(map_name), constant(map_constant), text_constant(map_name);
+	text_constant.erase(std::remove(RANGE(text_constant), '_'), text_constant.end());
+	std::transform(RANGE(text_constant), text_constant.begin(), [](char c) { return (char)toupper(c); });
+
+	bool gen1 = Config::monochrome(); // pokered and pokeyellow
+	struct Kind { const char *label, *macro; std::string rest; };
+	std::vector<Kind> kinds = gen1 ? std::vector<Kind>{
+		{"Warp", "warp_event", ", LAST_MAP, 1"},
+		{"Sign (bg_event)", "bg_event", ", TEXT_" + text_constant + "_NEW"},
+		{"Object", "object_event", ", SPRITE_YOUNGSTER, STAY, NONE, TEXT_" + text_constant + "_NEW"},
+	} : std::vector<Kind>{
+		{"Warp", "warp_event", ", " + constant + ", 1"},
+		{"Coord Event", "coord_event", ", 0, " + name + "NewScript"},
+		{"BG Event", "bg_event", ", BGEVENT_READ, " + name + "NewScript"},
+		{"Object", "object_event", ", SPRITE_CHRIS, SPRITEMOVEDATA_STILL, 0, 0, -1, -1, 0, OBJECTTYPE_SCRIPT, 0, " +
+			name + "NewScript, -1"},
+	};
+
+	// Only the kinds that the file has a place for (a def_*_events line) can be added
+	std::vector<Fl_Menu_Item> items;
+	for (const Kind &k : kinds) {
+		Fl_Menu_Item item = {k.label, 0, NULL, NULL, _map_events.can_add_event(k.macro) ? 0 : FL_MENU_INACTIVE};
+		items.push_back(item);
+	}
+	items.push_back(Fl_Menu_Item{NULL});
+	const Fl_Menu_Item *picked = items[0].popup(Fl::event_x(), Fl::event_y(), "Add Event");
+	if (!picked) { return; }
+	const Kind &kind = kinds[picked - &items[0]];
+
+	bool was_modified = _map_events.modified();
+	Event *e = _map_events.add_event(kind.macro, ex, ey, kind.rest);
+	if (!e) { return; }
+	e->callback((Fl_Callback *)change_event_cb, this);
+	_map_group->add(e);
+	_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	redraw();
+
+	// Fill in the new event right away; Cancel takes it back
+	_event_options_dialog->use_event(e);
+	_event_options_dialog->show(this);
+	if (_event_options_dialog->canceled()) {
+		_map_group->remove(e);
+		_map_events.remove_event(e);
+		delete e;
+		_map_events.modified(was_modified);
+	}
+	else {
+		_event_options_dialog->update_event(e);
+		_map_events.refresh_warps();
+		_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	}
+	update_active_controls();
+	redraw();
+}
+
 void Main_Window::view_event_script(Event *e) {
 #ifdef _WIN32
 	HWND hwnd = fl_xid(this);
@@ -3626,6 +3699,13 @@ void Main_Window::select_metatile_cb(Metatile_Button *mb, Main_Window *mw) {
 }
 
 void Main_Window::change_block_cb(Block *b, Main_Window *mw) {
+	if (mw->_map_editable && mw->_mode == Mode::EVENTS && Fl::event_button() == FL_RIGHT_MOUSE &&
+		Fl::event_is_click() && !Fl::event_clicks()) {
+		// Right-click an empty spot to add an event (events are drawn over the blocks,
+		// so a click that reaches a block has no event under it)
+		mw->add_event_at(b);
+		return;
+	}
 	if (!mw->_map_editable || mw->_mode != Mode::BLOCKS) { return; }
 	if (Fl::event_button() == FL_LEFT_MOUSE) {
 		if (!mw->_selected) { return; }

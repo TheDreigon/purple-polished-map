@@ -131,6 +131,130 @@ Map_Events::Result Map_Events::read_events(const char *f) {
 	return (_result = Result::MAP_EVENTS_OK);
 }
 
+// The header line that pret's map event files have before each kind of event
+static const char *events_header(const std::string &macro) {
+	if (macro == "warp_event") { return "def_warp_events"; }
+	if (macro == "coord_event") { return "def_coord_events"; }
+	if (macro == "bg_event") { return "def_bg_events"; }
+	if (macro == "object_event") { return "def_object_events"; }
+	return NULL;
+}
+
+// Where the line with the given header ends in text (after its newline), or npos
+static size_t after_header_line(const std::string &text, const char *header) {
+	size_t start = 0;
+	while (start < text.size()) {
+		size_t end = text.find('\n', start);
+		std::string line = text.substr(start, end == std::string::npos ? std::string::npos : end - start);
+		remove_comment(line);
+		std::istringstream lss(line);
+		std::string token;
+		if (leading_macro(lss, token) && token == header) {
+			return end == std::string::npos ? text.size() : end + 1;
+		}
+		if (end == std::string::npos) { break; }
+		start = end + 1;
+	}
+	return std::string::npos;
+}
+
+bool Map_Events::can_add_event(const std::string &macro) const {
+	if (events_meta.find(macro) == events_meta.end()) { return false; }
+	for (const Event *e : _events) {
+		if (e->macro() == macro) { return true; }
+	}
+	const char *header = events_header(macro);
+	if (!header) { return false; }
+	for (const Event *e : _events) {
+		if (after_header_line(e->prelude(), header) != std::string::npos) { return true; }
+	}
+	return after_header_line(_coda, header) != std::string::npos;
+}
+
+// Adds an event written as "macro x, y" followed by rest (which starts with its comma).
+// It goes after the last event of the same kind or, if there is none, right after the
+// def_*_events line for that kind. Returns NULL if the file has neither.
+// A new warp always becomes the last warp, so no other warp changes its number.
+Event *Map_Events::add_event(const std::string &macro, int16_t x, int16_t y, const std::string &rest) {
+	const auto meta = events_meta.find(macro);
+	if (meta == events_meta.end()) { return NULL; }
+
+	size_t index = SIZE_MAX;
+	std::string prelude;
+	for (size_t i = _events.size(); i-- > 0;) {
+		if (_events[i]->macro() == macro) {
+			index = i + 1;
+			break;
+		}
+	}
+	if (index == SIZE_MAX) {
+		const char *header = events_header(macro);
+		if (!header) { return NULL; }
+		// The header is in the text before some event, or after the last one
+		for (size_t i = 0; i < _events.size() && index == SIZE_MAX; i++) {
+			std::string p = _events[i]->prelude();
+			size_t cut = after_header_line(p, header);
+			if (cut != std::string::npos) {
+				prelude = p.substr(0, cut);
+				_events[i]->prelude(p.substr(cut));
+				index = i;
+			}
+		}
+		if (index == SIZE_MAX) {
+			size_t cut = after_header_line(_coda, header);
+			if (cut == std::string::npos) { return NULL; }
+			prelude = _coda.substr(0, cut);
+			_coda.erase(0, cut);
+			index = _events.size();
+		}
+		if (!prelude.empty() && prelude.back() != '\n') { prelude += '\n'; }
+	}
+
+	bool is_warp = meta->second.is_warp();
+	int warp_id = 0;
+	if (is_warp) {
+		warp_id = 1;
+		for (size_t i = 0; i < index; i++) {
+			if (_events[i]->macro() == macro) { warp_id++; }
+		}
+	}
+
+	char coords[32] = {};
+	snprintf(coords, sizeof(coords), "%2d, %2d", (int)x, (int)y);
+	std::string text = macro + " " + coords + rest;
+	Event *e = new Event(0, prelude, macro, meta->second, text, warp_id);
+	std::istringstream lss("\t" + text);
+	std::string token;
+	leading_macro(lss, token);
+	e->parse(lss);
+	_events.insert(_events.begin() + index, e);
+	if (is_warp) { _warps[warp_id] = e; }
+	refresh_warps();
+	_modified = true;
+	return e;
+}
+
+// Takes an event out of the list (the caller deletes it). The text that came before it
+// stays in the file, before the next event.
+void Map_Events::remove_event(Event *e) {
+	auto it = std::find(RANGE(_events), e);
+	if (it == _events.end()) { return; }
+	size_t i = it - _events.begin();
+	std::string prelude = e->prelude();
+	_events.erase(it);
+	if (i < _events.size()) {
+		_events[i]->prelude(prelude + _events[i]->prelude());
+	}
+	else {
+		_coda = prelude + _coda;
+	}
+	for (auto w = _warps.begin(); w != _warps.end();) {
+		if (w->second == e) { w = _warps.erase(w); }
+		else { ++w; }
+	}
+	refresh_warps();
+}
+
 const char *Map_Events::error_message(Result result) {
 	switch (result) {
 	case Result::MAP_EVENTS_OK:
