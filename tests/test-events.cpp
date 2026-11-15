@@ -149,6 +149,20 @@ TEST(events_reports_a_missing_file) {
 	CHECK_EQ(events.size(), (size_t)0);
 }
 
+TEST(events_notices_a_change_by_another_program) {
+	std::string f = working_copy("TestHouse.asm");
+	Map_Events events;
+	REQUIRE(events.read_events(f.c_str()) == Map_Events::Result::MAP_EVENTS_OK);
+	CHECK(!events.other_modified(f.c_str()));
+
+	test::make_newer(f);
+	CHECK(events.other_modified(f.c_str()));
+
+	// Once the user has agreed to overwrite the file, it is not asked about again
+	events.accept_other_modified(f.c_str());
+	CHECK(!events.other_modified(f.c_str()));
+}
+
 TEST(events_keeps_a_file_without_events_unchanged) {
 	std::string f = test::join(test::temp_dir(), "NoEvents.asm");
 	std::string text =

@@ -1876,6 +1876,38 @@ void Main_Window::resize_map(int w, int h) {
 	redraw();
 }
 
+// The map and its events have to match each other (resizing a map also moves its events).
+// So before File > Save writes either file, ask about overwriting any of the two that
+// another program has changed. Returns false if the user canceled; then neither is written.
+bool Main_Window::confirm_overwriting_map_and_events() {
+	const char *blk_filename = _blk_file.c_str(), *asm_filename = _asm_file.c_str();
+	bool map_changed = !_blk_file.empty() && _map.modified() && _map.other_modified(blk_filename);
+	bool events_changed = _map_events.loaded() && _map_events.modified() && _map_events.other_modified(asm_filename);
+
+	if (map_changed) {
+		std::string msg = fl_filename_name(blk_filename);
+		msg = msg + " was modified by another program!\n\n"
+			"Save the map and overwrite it anyway?";
+		_unsaved_dialog->message(msg);
+		_unsaved_dialog->show(this);
+		if (_unsaved_dialog->canceled()) { return false; }
+	}
+
+	if (events_changed) {
+		std::string msg = fl_filename_name(asm_filename);
+		msg = msg + " was modified by another program!\n\n"
+			"Save the events and overwrite it anyway?";
+		_unsaved_dialog->message(msg);
+		_unsaved_dialog->show(this);
+		if (_unsaved_dialog->canceled()) { return false; }
+	}
+
+	// The user agreed to both, so save_map() and save_event_script() do not ask again
+	if (map_changed) { _map.accept_other_modified(blk_filename); }
+	if (events_changed) { _map_events.accept_other_modified(asm_filename); }
+	return true;
+}
+
 bool Main_Window::save_map(bool force) {
 	const char *filename = _blk_file.c_str();
 	const char *basename = fl_filename_name(filename);
@@ -2474,6 +2506,7 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 
 void Main_Window::save_cb(Fl_Widget *w, Main_Window *mw) {
 	if (!mw->_map.size()) { return; }
+	if (!mw->confirm_overwriting_map_and_events()) { return; }
 	bool other_modified = false;
 	if (mw->_metatileset.const_tileset().modified()) {
 		save_tileset_cb(w, mw);

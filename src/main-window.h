@@ -201,6 +201,7 @@ private:
 	bool save_tileset(void);
 	bool save_roof(void);
 	bool save_event_script(void);
+	bool confirm_overwriting_map_and_events(void);
 	bool export_palettes(const char *filename);
 	void print_map(void);
 	void edit_metatile(Metatile *mt);

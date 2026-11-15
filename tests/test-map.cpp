@@ -200,6 +200,10 @@ TEST(map_notices_a_change_by_another_program) {
 
 	test::make_newer(f);
 	CHECK(map.other_modified(f.c_str()));
+
+	// Once the user has agreed to overwrite the file, it is not asked about again
+	map.accept_other_modified(f.c_str());
+	CHECK(!map.other_modified(f.c_str()));
 }
 
 // What the main window does on Edit > Resize Map with the top left corner anchored:

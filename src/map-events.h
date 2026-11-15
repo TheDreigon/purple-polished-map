@@ -33,6 +33,7 @@ public:
 	inline bool modified(void) const { return _modified; }
 	inline void modified(bool m) { _modified = m; }
 	inline bool other_modified(const char *f) const { return file_modified(f) > _mod_time; }
+	inline void accept_other_modified(const char *f) { _mod_time = file_modified(f); }
 	inline std::string coda(void) const { return _coda; }
 	inline void coda(const std::string &c) { _coda = c; }
 	void clear();
