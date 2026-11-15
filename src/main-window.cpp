@@ -3327,8 +3327,9 @@ void Main_Window::change_tileset_cb(Fl_Widget *w, Main_Window *mw) {
 		if (mw->_unsaved_dialog->canceled()) { return; }
 	}
 
-	char tileset_name[FL_PATH_MAX] = {};
+	char tileset_name[FL_PATH_MAX] = {}, old_tileset_name[FL_PATH_MAX] = {};
 	strcpy(tileset_name, tileset.name());
+	strcpy(old_tileset_name, tileset.name());
 
 	if (w) {
 		if (!mw->_tileset_options_dialog->limit_tileset_options(tileset_name)) {
@@ -3352,6 +3353,15 @@ void Main_Window::change_tileset_cb(Fl_Widget *w, Main_Window *mw) {
 
 	const char *roof_name = tileset.roof_name();
 	if (!mw->read_metatile_data(tileset_name, roof_name)) {
+		// Go back to the tileset the map had, so the map stays open with its unsaved changes
+		mw->_metatileset.clear();
+		if (strcmp(tileset_name, old_tileset_name) && mw->read_metatile_data(old_tileset_name, roof_name)) {
+			mw->force_add_sub_metatiles(old_size, mw->_metatileset.size());
+			mw->_metatileset.modified(false);
+			mw->redraw();
+			return;
+		}
+		// Not even that worked, so the map cannot be shown; closing it still asks about unsaved events
 		mw->_map.modified(false);
 		mw->_metatileset.modified(false);
 		close_cb(NULL, mw);
