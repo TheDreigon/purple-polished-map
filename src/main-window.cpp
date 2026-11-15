@@ -37,6 +37,33 @@
 #include "app-icon.xpm"
 #endif
 
+// A menu bar whose menus open on the screen where the window really is.
+// FLTK 1.4 keeps its own record of the window's position and screen, updated as the window
+// moves. After dragging a maximized window to another monitor that record is sometimes left
+// on the old monitor, and FLTK then pushes the menus back inside the old monitor. So, just
+// before a menu can open, tell FLTK the window's real position again, the same way Windows
+// does when a window moves.
+class Screen_Aware_Menu_Bar : public Fl_Menu_Bar {
+public:
+	Screen_Aware_Menu_Bar(int x, int y, int w, int h, const char *l = NULL) : Fl_Menu_Bar(x, y, w, h, l) {}
+	int handle(int event) override {
+#ifdef _WIN32
+		if (event == FL_PUSH || event == FL_SHORTCUT) {
+			Fl_Window *top = top_window();
+			HWND hwnd = top && top->shown() ? fl_xid(top) : NULL;
+			if (hwnd && !IsIconic(hwnd)) {
+				POINT origin = {0, 0};
+				if (ClientToScreen(hwnd, &origin)) {
+					// WM_MOVE carries the screen position of the window's client area
+					SendMessage(hwnd, WM_MOVE, 0, MAKELPARAM((WORD)(short)origin.x, (WORD)(short)origin.y));
+				}
+			}
+		}
+#endif
+		return Fl_Menu_Bar::handle(event);
+	}
+};
+
 Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_Window(x, y, w, h, PROGRAM_NAME),
 	_directory(), _blk_file(), _asm_file(), _recent(), _metatileset(), _map(), _map_events(), _status_event_x(INT_MIN),
 	_status_event_y(INT_MIN), _metatile_buttons(), _clipboard(0), _wx(x), _wy(y), _ww(w), _wh(h) {
@@ -97,7 +124,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	int wx = 0, wy = 0, ww = w, wh = h;
 
 	// Initialize menu bar
-	_menu_bar = new Fl_Menu_Bar(wx, wy, w, 21);
+	_menu_bar = new Screen_Aware_Menu_Bar(wx, wy, w, 21);
 	wy += _menu_bar->h();
 	wh -= _menu_bar->h();
 
