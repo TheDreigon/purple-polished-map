@@ -102,7 +102,7 @@ private:
 	Metatileset _metatileset;
 	Map _map;
 	Map_Events _map_events;
-	bool _gameboy_screen;
+	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
 	// Metatile button properties
 	Metatile_Button *_metatile_buttons[MAX_NUM_METATILES];
