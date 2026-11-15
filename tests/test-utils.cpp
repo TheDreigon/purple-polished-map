@@ -105,6 +105,20 @@ TEST(utils_handles_file_extensions) {
 	CHECK_EQ(s, "Route1.BLK");
 }
 
+TEST(utils_compares_paths) {
+	CHECK(same_path("maps/Route1.asm", "maps/Route1.asm"));
+	CHECK(!same_path("maps/Route1.asm", "maps/Route2.asm"));
+	CHECK(!same_path("maps/Route1.asm", "maps/Route1.asm.bak"));
+	CHECK(!same_path("maps/Route1.asm", ""));
+	CHECK(same_path("", ""));
+#ifdef _WIN32
+	// Windows ignores the case of file names and accepts both kinds of slash
+	CHECK(same_path("D:\\Project\\maps\\Route1.asm", "d:/project/MAPS/route1.ASM"));
+#else
+	CHECK(!same_path("maps/Route1.asm", "maps/route1.asm"));
+#endif
+}
+
 TEST(utils_reports_files) {
 	std::string dir = test::temp_dir();
 	std::string there = test::join(dir, "there.bin"), missing = test::join(dir, "missing.bin");

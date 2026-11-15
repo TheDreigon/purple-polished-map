@@ -118,6 +118,29 @@ TEST(config_prefers_png_graphics_and_asm_collisions) {
 	CHECK_EQ(path, test::join(project, "data/tilesets/forest_collision.bin"));
 }
 
+TEST(config_finds_the_events_of_a_map_file) {
+	std::string project = make_project({
+		"maps/NewBarkTown.blk",
+		"maps/NewBarkTown.asm",
+		"maps/PalletTown.blk",
+		"data/maps/objects/PalletTown.asm",
+		"maps/Copy.of.Route1.blk",
+	});
+	char path[FL_PATH_MAX] = {};
+
+	// pokecrystal keeps a map's events in maps/, pokered in data/maps/objects/
+	Config::map_events_path(path, project.c_str(), test::join(project, "maps/NewBarkTown.blk").c_str());
+	CHECK_EQ(path, test::join(project, "maps/NewBarkTown.asm"));
+	Config::map_events_path(path, project.c_str(), test::join(project, "maps/PalletTown.blk").c_str());
+	CHECK_EQ(path, test::join(project, "data/maps/objects/PalletTown.asm"));
+
+	// A map without events in the project gets the .asm file next to its .blk file,
+	// whether or not that file exists
+	Config::map_events_path(path, project.c_str(), test::join(project, "maps/Copy.of.Route1.blk").c_str());
+	CHECK_EQ(path, test::join(project, "maps/Copy.of.Route1.asm"));
+	CHECK(!file_exists(path));
+}
+
 TEST(config_names_the_png_files_to_save_a_tileset_to) {
 	std::string project = make_project({});
 	char png[FL_PATH_MAX] = {}, before[FL_PATH_MAX] = {}, after[FL_PATH_MAX] = {};

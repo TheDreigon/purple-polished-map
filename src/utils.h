@@ -51,6 +51,7 @@ void remove_dot_ext(const char *f, char *s);
 void add_dot_ext(const char *f, const char *ext, char *s);
 int text_width(const char *l, int pad = 0);
 bool file_exists(const char *f);
+bool same_path(const char *a, const char *b);
 size_t file_size(const char *f);
 size_t file_size(FILE *f);
 int64_t file_modified(const char *f);

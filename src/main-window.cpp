@@ -1418,13 +1418,7 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 
 	// load map events if applicable and they exist
 	if (auto_load_events() && filename) {
-		char map_name[FL_PATH_MAX] = {};
-		remove_dot_ext(filename, map_name);
-		Config::event_script_path(buffer, directory, map_name);
-		if (!file_exists(buffer)) {
-			strcpy(buffer, filename);
-			fl_filename_setext(buffer, ".asm");
-		}
+		Config::map_events_path(buffer, directory, filename);
 		if (file_exists(buffer)) {
 			load_events(buffer);
 		}

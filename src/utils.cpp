@@ -111,6 +111,21 @@ bool file_exists(const char *f) {
 	return !fl_access(f, 4); // R_OK
 }
 
+// Whether two paths, written the way this program builds them, name the same file
+bool same_path(const char *a, const char *b) {
+#ifdef _WIN32
+	// Windows ignores the case of file names and accepts both kinds of slash
+	for (; *a && *b; a++, b++) {
+		char ca = *a == '/' ? '\\' : (char)tolower((unsigned char)*a);
+		char cb = *b == '/' ? '\\' : (char)tolower((unsigned char)*b);
+		if (ca != cb) { return false; }
+	}
+	return !*a && !*b;
+#else
+	return !strcmp(a, b);
+#endif
+}
+
 size_t file_size(const char *f) {
 	struct stat s;
 	int r = fl_stat(f, &s);

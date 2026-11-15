@@ -26,6 +26,7 @@ public:
 	static bool map_headers_path(char *dest, const char *root);
 	static void map_header_path(char *dest, const char *root, const char *map_name);
 	static void event_script_path(char *dest, const char *root, const char *map_name);
+	static void map_events_path(char *dest, const char *root, const char *blk_path);
 	static void bg_tiles_pal_path(char *dest, const char *root);
 	static void roofs_pal_path(char *dest, const char *root);
 	static void special_pal_path(char *dest, const char *root, const char *filename, const char *landmark, const char *tileset);

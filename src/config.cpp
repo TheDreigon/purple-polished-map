@@ -246,6 +246,18 @@ void Config::event_script_path(char *dest, const char *root, const char *map_nam
 	sprintf(dest, "%sdata" DIR_SEP "mapObjects" DIR_SEP "%s.asm", root, map_name);
 }
 
+// The file that holds the events of the map in a .blk file: the project's event script
+// for the map of that name or, if there is none, an .asm file next to the .blk file
+void Config::map_events_path(char *dest, const char *root, const char *blk_path) {
+	char map_name[FL_PATH_MAX] = {};
+	remove_dot_ext(blk_path, map_name);
+	event_script_path(dest, root, map_name);
+	if (!file_exists(dest)) {
+		strcpy(dest, blk_path);
+		fl_filename_setext(dest, FL_PATH_MAX, ".asm");
+	}
+}
+
 void Config::tileset_constants_path(char *dest, const char *root) {
 	// try constants/tileset_constants.asm (pokecrystal)
 	sprintf(dest, "%sconstants" DIR_SEP "tileset_constants.asm", root);
