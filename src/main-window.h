@@ -190,7 +190,7 @@ private:
 	void load_events(const char *filename);
 	void unload_events(void);
 	void view_event_script(Event *e);
-	void load_palettes(const char *filename);
+	void load_palettes(const char *filename, const char *auto_option = NULL);
 	void load_roof_colors(bool quiet);
 	bool read_metatile_data(const char *tileset_name, const char *roof_name);
 	void add_sub_metatiles(size_t n);

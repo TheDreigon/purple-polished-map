@@ -1418,7 +1418,7 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 	if (auto_load_special_palettes()) {
 		Config::special_pal_path(buffer, directory, filename, _map.landmark().c_str(), tileset_name);
 		if (file_exists(buffer)) {
-			load_palettes(buffer);
+			load_palettes(buffer, "Auto-Load Special Palettes");
 		}
 	}
 
@@ -1604,11 +1604,18 @@ void Main_Window::view_event_script(Event *e) {
 #endif
 }
 
-void Main_Window::load_palettes(const char *filename) {
+// The note added to a message that one of the Options > Auto-Load items caused
+static std::string auto_option_note(const char *auto_option) {
+	if (!auto_option) { return ""; }
+	std::string note = "\n\n(This is because Options > ";
+	return note + auto_option + " is on.\nTurn it off to stop this.)";
+}
+
+void Main_Window::load_palettes(const char *filename, const char *auto_option) {
 	if (_edited_palettes) {
 		const char *basename = fl_filename_name(filename);
 		std::string msg = "The palettes have been edited!\n\n";
-		msg = msg + "Load " + basename + " anyway?";
+		msg = msg + "Load " + basename + " anyway?" + auto_option_note(auto_option);
 		_unsaved_dialog->message(msg);
 		_unsaved_dialog->show(this);
 		if (_unsaved_dialog->canceled()) { return; }
@@ -1627,10 +1634,13 @@ void Main_Window::load_roof_colors(bool quiet) {
 	char buffer[FL_PATH_MAX] = {};
 	Config::roofs_pal_path(buffer, _directory.c_str());
 
+	// Quiet loading is what Options > Auto-Load Roof Colors does when a map is opened
+	const char *auto_option = quiet ? "Auto-Load Roof Colors" : NULL;
+
 	if (_edited_palettes) {
 		const char *basename = fl_filename_name(buffer);
 		std::string msg = "The palettes have been edited!\n\n";
-		msg = msg + "Load " + basename + " anyway?";
+		msg = msg + "Load " + basename + " anyway?" + auto_option_note(auto_option);
 		_unsaved_dialog->message(msg);
 		_unsaved_dialog->show(this);
 		if (_unsaved_dialog->canceled()) { return; }
@@ -1640,7 +1650,7 @@ void Main_Window::load_roof_colors(bool quiet) {
 		Config::roofs_pal_path(buffer, "");
 		if (quiet) {
 			std::string msg = "Warning: Could not read ";
-			msg = msg + buffer + "!";
+			msg = msg + buffer + "!" + auto_option_note(auto_option);
 			_warning_dialog->message(msg);
 			_warning_dialog->show(this);
 		}
