@@ -387,7 +387,7 @@ bool Color::read_roof_colors(const char *f, uint8_t map_group, Roof_Palettes roo
 	return true;
 }
 
-static const char *palettes_names[NUM_PALETTE_SETS] = {"morn", "day", "nite", "indoor", "custom"};
+static const char *palettes_names[NUM_PALETTE_SETS] = {"morn", "day", "nite", "darkness", "indoor", "custom"};
 static const char *palette_names[NUM_GAME_PALETTES] = {"gray", "red", "green", "water", "yellow", "brown", "roof", "text"};
 
 bool Color::write_palettes(const char *f) {
