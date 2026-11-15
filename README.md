@@ -47,6 +47,6 @@ Browse the menu items, toolbar buttons, and Help dialog to learn how to use it. 
 
 (All those "Edit Block" mouse controls are explained further in [doc/edit-block.md](doc/edit-block.md).)
 
-More information about Polished Map is at the [Skeetendo Forums](https://hax.iimarckus.org/topic/7222/) and [PokéCommunity](https://www.pokecommunity.com/showthread.php?t=425994).
+More information about Polished Map is at [PokéCommunity](https://www.pokecommunity.com/showthread.php?t=425994).
 
 ![Screenshot of Polished Map](screenshot.png)
