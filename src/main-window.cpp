@@ -1296,9 +1296,14 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 	if (filename) {
 		basename = fl_filename_name(_blk_file.c_str());
 		Map::Result r = _map.read_blocks(filename);
+		// A .blk file of the wrong size: say which sizes would fit it
+		std::string hint;
+		if ((r == Map::Result::MAP_TOO_LONG || r == Map::Result::MAP_TOO_SHORT) && !ends_with_ignore_case(filename, ".map")) {
+			hint = "\n\n" + Map::size_hint((uint8_t)w, (uint8_t)h, file_size(filename));
+		}
 		if (r == Map::Result::MAP_TOO_LONG) {
 			std::string msg = "Warning: ";
-			msg = msg + basename + ":\n\n" + Map::error_message(r);
+			msg = msg + basename + ":\n\n" + Map::error_message(r) + hint;
 			_warning_dialog->message(msg);
 			_warning_dialog->show(this);
 		}
@@ -1306,7 +1311,7 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 			_map.clear();
 			_metatileset.clear();
 			std::string msg = "Error reading ";
-			msg = msg + basename + "!\n\n" + Map::error_message(r);
+			msg = msg + basename + "!\n\n" + Map::error_message(r) + hint;
 			_error_dialog->message(msg);
 			_error_dialog->show(this);
 			return;

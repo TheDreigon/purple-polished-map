@@ -61,6 +61,21 @@ TEST(map_reports_a_file_of_the_wrong_size) {
 	CHECK(missing_map.read_blocks(missing.c_str()) == Map::Result::MAP_BAD_FILE);
 }
 
+TEST(map_explains_a_file_of_the_wrong_size) {
+	// Shown with "File ends too early" or "larger than the specified size" when opening a map
+	std::string hint = Map::size_hint(20, 18, 350);
+	CHECK_EQ(hint,
+		"The map is 20 x 18 (360 blocks),\n"
+		"but the file has 350 bytes.\n"
+		"\n"
+		"Sizes that fit 350 bytes: 25 x 14, 14 x 25, 10 x 35, 7 x 50"); // closest widths to 20 first
+
+	// A size that cannot be any map
+	CHECK_EQ(Map::size_hint(10, 9, 0), "The map is 10 x 9 (90 blocks),\nbut the file has 0 bytes.");
+	// 509 is prime and above 255, so no width and height up to 255 fit it
+	CHECK_EQ(Map::size_hint(10, 9, 509), "The map is 10 x 9 (90 blocks),\nbut the file has 509 bytes.");
+}
+
 TEST(map_reads_block_ids_from_an_asm_map_file) {
 	std::string f = test::join(test::temp_dir(), "Small.map");
 	test::write_file(f,

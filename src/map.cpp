@@ -187,6 +187,33 @@ bool Map::write_blocks(const char *f) {
 	return true;
 }
 
+// Explains a .blk file that does not match the chosen size, and suggests sizes that do match
+std::string Map::size_hint(uint8_t w, uint8_t h, size_t file_size) {
+	size_t n = (size_t)w * (size_t)h;
+	std::ostringstream ss;
+	ss << "The map is " << (int)w << " x " << (int)h << " (" << n << " blocks),\n"
+		"but the file has " << file_size << " bytes.";
+	std::vector<std::pair<int, int>> fits;
+	for (int fw = 1; fw <= 255; fw++) {
+		if (file_size % fw) { continue; }
+		size_t fh = file_size / fw;
+		if (fh >= 1 && fh <= 255) { fits.emplace_back(fw, (int)fh); }
+	}
+	// The sizes closest to the chosen width are the likeliest
+	std::stable_sort(RANGE(fits), [w](const auto &a, const auto &b) {
+		return std::abs(a.first - (int)w) < std::abs(b.first - (int)w);
+	});
+	if (fits.size() > 4) { fits.resize(4); }
+	if (!fits.empty()) {
+		ss << "\n\nSizes that fit " << file_size << " bytes: ";
+		for (size_t i = 0; i < fits.size(); i++) {
+			if (i) { ss << ", "; }
+			ss << fits[i].first << " x " << fits[i].second;
+		}
+	}
+	return ss.str();
+}
+
 const char *Map::error_message(Result result) {
 	switch (result) {
 	case Result::MAP_OK:

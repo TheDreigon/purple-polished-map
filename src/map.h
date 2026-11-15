@@ -88,6 +88,7 @@ private:
 	Result read_asm_blocks(const char *f);
 public:
 	static const char *error_message(Result result);
+	static std::string size_hint(uint8_t w, uint8_t h, size_t file_size);
 };
 
 #endif
