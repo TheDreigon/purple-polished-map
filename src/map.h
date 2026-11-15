@@ -69,6 +69,7 @@ public:
 	inline Block *block(uint8_t x, uint8_t y) const { return _blocks[(size_t)y * _width + (size_t)x]; }
 	inline Block *block(size_t i) const { return _blocks[i]; }
 	Block *block_under(Event *e);
+	bool uses_block(uint8_t id) const;
 	void block(uint8_t x, uint8_t y, Block *b);
 	inline Result result(void) const { return _result; }
 	inline bool modified(void) const { return _modified; }

@@ -30,6 +30,7 @@ private:
 	Tileset *_tileset;
 	bool _canceled;
 	bool _show_priority;
+	bool _unused_tiles[MAX_NUM_TILES]; // tiles no block uses, to highlight; all false when not highlighting
 	Tile_Window *_window;
 	Label *_tileset_heading, *_tile_heading;
 	Fl_Group *_tileset_group, *_tile_group;
@@ -57,6 +58,8 @@ public:
 	inline bool canceled(void) const { return _canceled; }
 	inline void canceled(bool c) { _canceled = c; }
 	inline bool show_priority(void) const { return _show_priority; }
+	inline bool tile_unused(uint8_t id) const { return _unused_tiles[id]; }
+	inline void tile_unused(uint8_t id, bool u) { _unused_tiles[id] = u; }
 	void show(const Fl_Widget *p, bool show_priority);
 	void draw_tile(int x, int y, uint8_t id) const;
 	void apply_modifications(void);

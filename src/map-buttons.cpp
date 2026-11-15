@@ -8,6 +8,19 @@
 #include "map-buttons.h"
 #include "utils.h"
 
+// Diagonal stripes, black and white so they show on any colors, over a block or tile that is
+// not used (View > Highlight Unused)
+static void draw_unused_stripes(int x, int y, int w, int h) {
+	fl_push_clip(x, y, w, h);
+	fl_line_style(FL_SOLID, 1);
+	for (int d = -h, i = 0; d < w; d += 3, i++) {
+		fl_color(i % 2 ? FL_WHITE : FL_BLACK);
+		fl_line(x + d, y + h, x + d + h, y);
+	}
+	fl_line_style(0);
+	fl_pop_clip();
+}
+
 static void draw_selection_border(int x, int y, int rs, bool zoom) {
 	fl_rect(x, y, rs, rs, FL_BLACK);
 	fl_rect(x+1, y+1, rs-2, rs-2, FL_WHITE);
@@ -72,6 +85,11 @@ void Metatile_Button::draw() {
 	Main_Window *mw = (Main_Window *)user_data();
 	bool outline = value() || (dragging && (this == dragging || this == Fl::belowmouse()));
 	draw_map_button(this, _id, outline);
+	if (mw->highlight_unused() && !mw->block_used(_id)) {
+		// Leave the selection outline visible around the stripes
+		int m = outline ? (mw->zoom() ? 4 : 3) : 0;
+		draw_unused_stripes(x() + m, y() + m, w() - 2 * m, h() - 2 * m);
+	}
 	auto s = mw->metatile_hotkey(_id);
 	if (s == mw->no_hotkey()) { return; }
 	int key = s->second;
@@ -302,6 +320,9 @@ void Deep_Tile_Button::draw() {
 	}
 	Tileset_Window *tw = (Tileset_Window *)user_data();
 	draw_with_priority(x(), y(), TILE_PX_SIZE, tw->show_priority());
+	if (active() && tw->tile_unused(_id)) {
+		draw_unused_stripes(x(), y(), TILE_PX_SIZE, TILE_PX_SIZE);
+	}
 	if (value() || (_dragging && (this == _dragging || this == Fl::belowmouse()))) {
 		draw_selection_border(x(), y(), TILE_PX_SIZE, false);
 	}

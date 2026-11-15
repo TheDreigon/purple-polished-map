@@ -83,6 +83,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	int gameboy_screen_config = Preferences::get("gameboy", 0);
 	int show_events_config = Preferences::get("event", 1);
 	int show_warp_ids_config = Preferences::get("warp-ids", 1);
+	int highlight_unused_config = Preferences::get("unused", 0);
 	Palettes palettes_config = (Palettes)Preferences::get("palettes", (int)Palettes::DAY);
 
 	int monochrome_config = Preferences::get("monochrome", 0);
@@ -389,7 +390,9 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 		OS_MENU_ITEM("Show &Events", FL_COMMAND + 'V', (Fl_Callback *)show_events_cb, this,
 			FL_MENU_TOGGLE | (show_events_config ? FL_MENU_VALUE : 0)),
 		OS_MENU_ITEM("Show &Warp IDs", FL_COMMAND + FL_SHIFT + '3', (Fl_Callback *)show_warp_ids_cb, this,
-			FL_MENU_TOGGLE | (show_warp_ids_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
+			FL_MENU_TOGGLE | (show_warp_ids_config ? FL_MENU_VALUE : 0)),
+		OS_MENU_ITEM("Highlight &Unused", FL_COMMAND + 'U', (Fl_Callback *)highlight_unused_cb, this,
+			FL_MENU_TOGGLE | (highlight_unused_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("Pa&lettes", 0, NULL, NULL, FL_SUBMENU | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("&Morn", 0, (Fl_Callback *)morn_palettes_cb, this,
 			FL_MENU_RADIO | (palettes_config == Palettes::MORN ? FL_MENU_VALUE : 0)),
@@ -489,6 +492,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_gameboy_screen_mi = PM_FIND_MENU_ITEM_CB(gameboy_screen_cb);
 	_show_events_mi = PM_FIND_MENU_ITEM_CB(show_events_cb);
 	_show_warp_ids_mi = PM_FIND_MENU_ITEM_CB(show_warp_ids_cb);
+	_highlight_unused_mi = PM_FIND_MENU_ITEM_CB(highlight_unused_cb);
 	_transparent_mi = PM_FIND_MENU_ITEM_CB(transparent_cb);
 	_full_screen_mi = PM_FIND_MENU_ITEM_CB(full_screen_cb);
 	_morn_mi = PM_FIND_MENU_ITEM_CB(morn_palettes_cb);
@@ -3071,6 +3075,7 @@ void Main_Window::exit_cb(Fl_Widget *, Main_Window *mw) {
 	Preferences::set("gameboy", mw->gameboy_screen());
 	Preferences::set("event", mw->show_events());
 	Preferences::set("warp-ids", mw->show_warp_ids());
+	Preferences::set("unused", mw->highlight_unused());
 	Preferences::set("transparent", mw->transparent());
 	Preferences::set("palettes", (int)mw->palettes());
 	Preferences::set("monochrome", mw->monochrome());
@@ -3308,6 +3313,10 @@ void Main_Window::show_warp_ids_cb(Fl_Menu_ *m, Main_Window *mw) {
 	mw->redraw();
 }
 
+void Main_Window::highlight_unused_cb(Fl_Menu_ *, Main_Window *mw) {
+	mw->redraw();
+}
+
 #undef SYNC_TB_WITH_M
 
 #define SYNC_MI_WITH_TB(tb, mi) if (tb->value()) mi->set(); else mi->clear()
@@ -3539,6 +3548,11 @@ void Main_Window::edit_tileset_cb(Fl_Widget *, Main_Window *mw) {
 	if (!mw->_map.size()) { return; }
 
 	mw->_tileset_window->tileset(&mw->_metatileset.tileset());
+	// View > Highlight Unused also marks the tiles that no block uses
+	bool highlight = mw->highlight_unused();
+	for (int i = 0; i < MAX_NUM_TILES; i++) {
+		mw->_tileset_window->tile_unused((uint8_t)i, highlight && !mw->_metatileset.uses_tile((uint8_t)i));
+	}
 	mw->_tileset_window->show(mw, mw->show_priority());
 	bool canceled = mw->_tileset_window->canceled();
 	if (canceled) { return; }
@@ -3777,6 +3791,9 @@ void Main_Window::change_block_cb(Block *b, Main_Window *mw) {
 		}
 		mw->_map.modified(true);
 		mw->update_status(b);
+		if (mw->highlight_unused()) {
+			mw->_sidebar->redraw(); // which blocks are unused may have changed
+		}
 	}
 	else if (Fl::event_button() == FL_RIGHT_MOUSE) {
 		// Right-click to select

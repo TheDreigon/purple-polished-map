@@ -293,6 +293,21 @@ TEST(map_resized_cannot_undo_to_the_old_size) {
 	CHECK(!map.can_redo());
 }
 
+TEST(map_tells_which_blocks_it_uses) {
+	// For View > Highlight Unused (upstream issue 106)
+	Map map;
+	load_small_map(map, 2, 2, "\x01\x02\x02\x07");
+	CHECK(map.uses_block(1));
+	CHECK(map.uses_block(2));
+	CHECK(map.uses_block(7));
+	CHECK(!map.uses_block(0));
+	CHECK(!map.uses_block(3));
+
+	map.block((size_t)0)->id(3);
+	CHECK(map.uses_block(3));
+	CHECK(!map.uses_block(1));
+}
+
 TEST(map_clear_forgets_everything) {
 	Map map;
 	load_small_map(map, 2, 2, "\x01\x02\x03\x04");

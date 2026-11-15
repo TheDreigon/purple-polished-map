@@ -48,6 +48,14 @@ Block *Map::block_under(Event *e) {
 	return bx >= 0 && by >= 0 && bx < _width && by < _height ? block((uint8_t)bx, (uint8_t)by) : NULL;
 }
 
+bool Map::uses_block(uint8_t id) const {
+	size_t n = size();
+	for (size_t i = 0; i < n; i++) {
+		if (_blocks[i] && _blocks[i]->id() == id) { return true; }
+	}
+	return false;
+}
+
 void Map::clear() {
 	delete [] _blocks;
 	_blocks = NULL;

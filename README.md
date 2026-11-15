@@ -14,6 +14,7 @@ All credit for Polished Map goes to Rangi and its contributors. The license ([LG
 - It has its own name, version, executable (**purple-polished-map.exe**) and settings file, so it can be used side by side with the original without sharing settings.
 - Right-clicking an empty spot in Events Mode adds a new event.
 - In pokered and pokeyellow projects, the map shows where its hidden objects are (read-only, from data/events/hidden_objects.asm).
+- **View > Highlight Unused** puts stripes over the blocks the map does not use and, in the tileset editor, over the tiles no block uses.
 - It has [automated tests](tests/README.md) for the code that reads and writes maps, blocksets, tilesets and events.
 
 More fixes are on the way. Each one is a separate commit that explains what it changes.
