@@ -2236,6 +2236,8 @@ void Main_Window::print_map() {
 }
 
 void Main_Window::edit_metatile(Metatile *mt) {
+	Metatile before(mt->id());
+	before.copy(mt);
 	for (int y = 0; y < METATILE_SIZE; y++) {
 		for (int x = 0; x < METATILE_SIZE; x++) {
 			uint8_t id = _block_window->tile_id(x, y);
@@ -2249,7 +2251,10 @@ void Main_Window::edit_metatile(Metatile *mt) {
 			}
 		}
 	}
-	_metatileset.modified(true);
+	// Leaving the editor with OK without changing anything leaves nothing to save
+	if (!mt->same_as(&before)) {
+		_metatileset.modified(true);
+	}
 	redraw();
 }
 

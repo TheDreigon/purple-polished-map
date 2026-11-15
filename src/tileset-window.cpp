@@ -256,9 +256,11 @@ void Tileset_Window::draw_tile(int x, int y, uint8_t id) const {
 
 void Tileset_Window::apply_modifications() {
 	Palette_Map &palette_map = _tileset->palette_map();
+	bool changed = false;
 	for (int i = 0; i < MAX_NUM_TILES; i++) {
 		const Tile *t = _deep_tile_buttons[i];
 		uint8_t id = (uint8_t)i;
+		if (!_tileset->tile(id)->same_graphics(t)) { changed = true; }
 		_tileset->tile(id)->copy(t);
 		palette_map.palette(id, t->palette());
 		Tile *rt = _tileset->roof_tile(id);
@@ -268,8 +270,11 @@ void Tileset_Window::apply_modifications() {
 		}
 	}
 	// A tile drawn in a free slot has no color yet; give it one so it is shown and saved properly
-	_tileset->color_drawn_tiles();
-	_tileset->modified(true);
+	if (_tileset->color_drawn_tiles()) { changed = true; }
+	// Leaving the editor with OK without changing anything leaves nothing to save
+	if (changed) {
+		_tileset->modified(true);
+	}
 }
 
 void Tileset_Window::select(Deep_Tile_Button *dtb) {

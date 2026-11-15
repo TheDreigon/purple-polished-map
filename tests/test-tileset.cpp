@@ -334,6 +334,46 @@ TEST(metatileset_reads_blocks_of_16_tiles) {
 	CHECK(!metatileset.modified());
 }
 
+TEST(tile_tells_whether_its_graphics_changed) {
+	// The tileset editor uses this so that leaving it with OK, without changing anything,
+	// does not mark the tileset as modified (which made the next save rewrite its PNG)
+	Metatileset metatileset;
+	load_tileset(metatileset, example_tileset("kanto"));
+	Tileset &tileset = metatileset.tileset();
+
+	Tile copy(5);
+	copy.copy(tileset.const_tile(5));
+	CHECK(copy.same_graphics(tileset.const_tile(5)));
+
+	Hue h = copy.hue(2, 2) == Hue::BLACK ? Hue::WHITE : Hue::BLACK;
+	copy.pixel(2, 2, h, 0, 0, 0);
+	CHECK(!copy.same_graphics(tileset.const_tile(5)));
+
+	copy.copy(tileset.const_tile(5));
+	copy.palette(copy.palette() == Palette::RED ? Palette::GRAY : Palette::RED);
+	CHECK(!copy.same_graphics(tileset.const_tile(5)));
+}
+
+TEST(metatile_tells_whether_it_changed) {
+	Metatileset metatileset;
+	load_tileset(metatileset, example_tileset("kanto"));
+
+	Metatile copy(7);
+	copy.copy(metatileset.metatile(7));
+	CHECK(copy.same_as(metatileset.metatile(7)));
+
+	copy.tile_id(1, 2, (uint8_t)(copy.tile_id(1, 2) + 1));
+	CHECK(!copy.same_as(metatileset.metatile(7)));
+
+	copy.copy(metatileset.metatile(7));
+	copy.collision(Quadrant::TOP_RIGHT, "WATER");
+	CHECK(!copy.same_as(metatileset.metatile(7)));
+
+	copy.copy(metatileset.metatile(7));
+	copy.bin_collision(Quadrant::BOTTOM_LEFT, 0x29);
+	CHECK(!copy.same_as(metatileset.metatile(7)));
+}
+
 TEST(metatileset_read_twice_does_not_add_the_blocks_again) {
 	// Opening a map on top of another one used to read the new blockset after the old one,
 	// and a later save wrote both into the new blockset file

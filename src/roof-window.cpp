@@ -196,11 +196,16 @@ void Roof_Window::show(const Fl_Widget *p) {
 }
 
 void Roof_Window::apply_modifications() {
+	bool changed = false;
 	for (const Tile *t : _deep_tile_buttons) {
 		uint8_t id = t->id();
+		if (!_tileset->roof_tile(id)->same_graphics(t)) { changed = true; }
 		_tileset->roof_tile(id)->copy(t);
 	}
-	_tileset->modified_roof(true);
+	// Leaving the editor with OK without changing anything leaves nothing to save
+	if (changed) {
+		_tileset->modified_roof(true);
+	}
 }
 
 void Roof_Window::select(Deep_Tile_Button *dtb) {

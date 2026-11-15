@@ -61,6 +61,11 @@ bool Tile::is_blank() const {
 	});
 }
 
+// Whether the two tiles have the same color and the same hue in every pixel
+bool Tile::same_graphics(const Tile *t) const {
+	return _palette == t->_palette && std::equal(RANGE(_hues), t->_hues);
+}
+
 void Tile::pixel(int x, int y, Hue h, uchar r, uchar g, uchar b) {
 	_hues[y * TILE_SIZE + x] = h;
 	int i = (y * LINE_BYTES + x * NUM_CHANNELS) * ZOOM_FACTOR;
