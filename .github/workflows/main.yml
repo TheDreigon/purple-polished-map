@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ purple ]
   pull_request:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y git zlib1g-dev libpng-dev libxpm-dev libx11-dev libxft-dev libxinerama-dev libfontconfig1-dev x11proto-xext-dev libxrender-dev libxfixes-dev libcairo2-dev libpango1.0-dev
+          sudo apt-get install -y git zlib1g-dev libpng-dev libxpm-dev libx11-dev libxft-dev libxinerama-dev libfontconfig1-dev x11proto-xext-dev libxrender-dev libxfixes-dev libcairo2-dev libpango1.0-dev xvfb
 
       - name: Checkout FLTK
         uses: actions/checkout@master
@@ -43,3 +43,8 @@ jobs:
       - name: Build
         run: |
           make
+
+      # The tests open no window, but FLTK may still ask for a display, so give it a virtual one
+      - name: Test
+        run: |
+          xvfb-run -a make check
