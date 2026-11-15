@@ -32,6 +32,11 @@ void Config::gfx_roof_dir(char *dest, const char *root) {
 bool Config::project_path_from_blk_path(const char *blk_path, char *project_path) {
 	char scratch_path[FL_PATH_MAX] = {};
 	fl_filename_absolute(scratch_path, blk_path);
+#ifdef _WIN32
+	// Windows accepts both kinds of slash, and paths from scripts or Git Bash often use '/',
+	// but the rest of the program builds paths with '\'
+	std::replace(scratch_path, scratch_path + strlen(scratch_path), '/', '\\');
+#endif
 	char makefile[FL_PATH_MAX] = {};
 	for (;;) {
 		char *pivot = strrchr(scratch_path, *DIR_SEP);

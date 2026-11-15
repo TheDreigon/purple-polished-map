@@ -33,6 +33,18 @@ TEST(config_finds_the_project_folder_from_a_map_file) {
 	CHECK_EQ(found, project);
 }
 
+TEST(config_finds_the_project_folder_from_a_path_with_forward_slashes) {
+	// On Windows, a path written with '/' (as Git Bash and many scripts do) used to be rejected
+	// with "Could not find the project directory"
+	std::string project = make_project({"maps/Route1.blk"});
+	std::string blk = test::join(project, "maps/Route1.blk");
+	std::replace(blk.begin(), blk.end(), '\\', '/');
+	char found[FL_PATH_MAX] = {};
+
+	CHECK(Config::project_path_from_blk_path(blk.c_str(), found));
+	CHECK_EQ(found, project);
+}
+
 TEST(config_finds_pokecrystal_files) {
 	std::string project = example_project();
 	char path[FL_PATH_MAX] = {};
