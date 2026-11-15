@@ -51,7 +51,7 @@ private:
 		*_greybird_theme_mi = NULL, *_ocean_theme_mi = NULL, *_blue_theme_mi = NULL, *_olive_theme_mi = NULL,
 		*_rose_gold_theme_mi = NULL, *_dark_theme_mi = NULL, *_brushed_metal_theme_mi = NULL, *_high_contrast_theme_mi = NULL;
 	Fl_Menu_Item *_grid_mi = NULL, *_rulers_mi, *_zoom_mi = NULL, *_ids_mi = NULL, *_hex_mi = NULL, *_show_priority_mi = NULL,
-		*_gameboy_screen_mi = NULL, *_show_events_mi = NULL, *_show_warp_ids_mi = NULL, *_highlight_unused_mi = NULL, *_transparent_mi = NULL,
+		*_gameboy_screen_mi = NULL, *_show_events_mi = NULL, *_show_warp_ids_mi = NULL, *_highlight_unused_mi = NULL, *_show_collisions_mi = NULL, *_transparent_mi = NULL,
 		*_full_screen_mi = NULL;
 	Fl_Menu_Item *_morn_mi = NULL, *_day_mi = NULL, *_night_mi = NULL, *_darkness_mi = NULL, *_indoor_mi = NULL,
 		*_custom_mi = NULL;
@@ -104,6 +104,7 @@ private:
 	Map _map;
 	Map_Events _map_events;
 	std::vector<Hidden_Object_Marker *> _hidden_object_markers;
+	std::vector<bool> _passable_tiles; // empty when the project does not say
 	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
 	// Metatile button properties
@@ -139,6 +140,9 @@ public:
 	inline bool show_warp_ids(void) const { return _show_warp_ids_mi && !!_show_warp_ids_mi->value(); }
 	inline bool highlight_unused(void) const { return _highlight_unused_mi && !!_highlight_unused_mi->value(); }
 	inline bool block_used(uint8_t id) const { return _map.uses_block(id); }
+	inline bool show_collisions(void) const { return _show_collisions_mi && !!_show_collisions_mi->value(); }
+	inline bool has_passable_tiles(void) const { return !_passable_tiles.empty(); }
+	bool square_blocked(uint8_t block_id, int qx, int qy);
 	inline bool full_screen(void) const { return _full_screen_mi && !!_full_screen_mi->value(); }
 	inline Palettes palettes(void) const { return (Palettes)_palettes->value(); }
 	inline Mode mode(void) const { return _mode; }
@@ -273,6 +277,7 @@ private:
 	static void show_events_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void show_warp_ids_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void highlight_unused_cb(Fl_Menu_ *m, Main_Window *mw);
+	static void show_collisions_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void transparent_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void morn_palettes_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void day_palettes_cb(Fl_Menu_ *m, Main_Window *mw);

@@ -149,10 +149,30 @@ void Block::update_label() {
 	copy_label(buffer);
 }
 
+// Red stripes over a square that cannot be walked on (View > Show Collisions)
+static void draw_blocked_square(int x, int y, int s) {
+	fl_push_clip(x, y, s, s);
+	fl_color(FL_RED);
+	for (int d = -s; d < s; d += 4) {
+		fl_line(x + d, y + s, x + d + s, y);
+	}
+	fl_pop_clip();
+}
+
 void Block::draw() {
 	Main_Window *mw = (Main_Window *)user_data();
 	bool below_mouse = Fl::belowmouse() == this, event_cursor = mw->mode() == Mode::EVENTS;
 	draw_map_button(this, _id, below_mouse && !event_cursor);
+	if (mw->show_collisions() && mw->has_passable_tiles()) {
+		int hs = mw->metatile_size() / 2;
+		for (int qy = 0; qy < 2; qy++) {
+			for (int qx = 0; qx < 2; qx++) {
+				if (mw->square_blocked(_id, qx, qy)) {
+					draw_blocked_square(x() + qx * hs, y() + qy * hs, hs);
+				}
+			}
+		}
+	}
 	if (!below_mouse || !event_cursor) { return; }
 	int hx = x() + right_half() * w() / 2, hy = y() + bottom_half() * h() / 2;
 	int hs = mw->metatile_size() / 2;

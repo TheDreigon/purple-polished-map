@@ -108,6 +108,9 @@
     <ClCompile Include="..\src\hidden-objects.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\collision-tiles.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\palette-window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -213,6 +216,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\hidden-objects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\collision-tiles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\palette-window.h">

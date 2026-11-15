@@ -136,6 +136,7 @@
     <ClCompile Include="..\src\ruler.cpp" />
     <ClCompile Include="..\src\smooth-icon.cpp" />
     <ClCompile Include="..\src\hidden-objects.cpp" />
+    <ClCompile Include="..\src\collision-tiles.cpp" />
     <ClCompile Include="..\src\themes.cpp" />
     <ClCompile Include="..\src\tile.cpp" />
     <ClCompile Include="..\src\tiled-image.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="..\src\ruler.h" />
     <ClInclude Include="..\src\smooth-icon.h" />
     <ClInclude Include="..\src\hidden-objects.h" />
+    <ClInclude Include="..\src\collision-tiles.h" />
     <ClInclude Include="..\src\themes.h" />
     <ClInclude Include="..\src\tile.h" />
     <ClInclude Include="..\src\tiled-image.h" />

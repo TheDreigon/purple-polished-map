@@ -367,6 +367,11 @@ void Config::hidden_objects_path(char *dest, const char *root) {
 	sprintf(dest, "%sdata" DIR_SEP "events" DIR_SEP "hidden_objects.asm", root);
 }
 
+void Config::collision_tile_ids_path(char *dest, const char *root) {
+	// data/tilesets/collision_tile_ids.asm (pokered, pokeyellow)
+	sprintf(dest, "%sdata" DIR_SEP "tilesets" DIR_SEP "collision_tile_ids.asm", root);
+}
+
 void Config::tileset_constants_path(char *dest, const char *root) {
 	// try constants/tileset_constants.asm (pokecrystal)
 	sprintf(dest, "%sconstants" DIR_SEP "tileset_constants.asm", root);

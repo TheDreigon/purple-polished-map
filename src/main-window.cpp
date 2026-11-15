@@ -28,6 +28,7 @@
 #include "image.h"
 #include "colors.h"
 #include "icons.h"
+#include "collision-tiles.h"
 
 #ifdef _WIN32
 #include "resource.h"
@@ -84,6 +85,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	int show_events_config = Preferences::get("event", 1);
 	int show_warp_ids_config = Preferences::get("warp-ids", 1);
 	int highlight_unused_config = Preferences::get("unused", 0);
+	int show_collisions_config = Preferences::get("collisions", 0);
 	Palettes palettes_config = (Palettes)Preferences::get("palettes", (int)Palettes::DAY);
 
 	int monochrome_config = Preferences::get("monochrome", 0);
@@ -392,7 +394,9 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 		OS_MENU_ITEM("Show &Warp IDs", FL_COMMAND + FL_SHIFT + '3', (Fl_Callback *)show_warp_ids_cb, this,
 			FL_MENU_TOGGLE | (show_warp_ids_config ? FL_MENU_VALUE : 0)),
 		OS_MENU_ITEM("Highlight &Unused", FL_COMMAND + 'U', (Fl_Callback *)highlight_unused_cb, this,
-			FL_MENU_TOGGLE | (highlight_unused_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
+			FL_MENU_TOGGLE | (highlight_unused_config ? FL_MENU_VALUE : 0)),
+		OS_MENU_ITEM("Show &Collisions", FL_COMMAND + 'C', (Fl_Callback *)show_collisions_cb, this,
+			FL_MENU_TOGGLE | (show_collisions_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("Pa&lettes", 0, NULL, NULL, FL_SUBMENU | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("&Morn", 0, (Fl_Callback *)morn_palettes_cb, this,
 			FL_MENU_RADIO | (palettes_config == Palettes::MORN ? FL_MENU_VALUE : 0)),
@@ -493,6 +497,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_show_events_mi = PM_FIND_MENU_ITEM_CB(show_events_cb);
 	_show_warp_ids_mi = PM_FIND_MENU_ITEM_CB(show_warp_ids_cb);
 	_highlight_unused_mi = PM_FIND_MENU_ITEM_CB(highlight_unused_cb);
+	_show_collisions_mi = PM_FIND_MENU_ITEM_CB(show_collisions_cb);
 	_transparent_mi = PM_FIND_MENU_ITEM_CB(transparent_cb);
 	_full_screen_mi = PM_FIND_MENU_ITEM_CB(full_screen_cb);
 	_morn_mi = PM_FIND_MENU_ITEM_CB(morn_palettes_cb);
@@ -1855,6 +1860,15 @@ bool Main_Window::read_metatile_data(const char *tileset_name, const char *roof_
 	rm = _metatileset.read_collisions(buffer);
 	_has_collisions = (rm == Metatileset::Result::META_OK);
 
+	// Which tiles can be walked on, for View > Show Collisions (pokered and pokeyellow)
+	_passable_tiles.clear();
+	char coll_ids[FL_PATH_MAX] = {}, base_name[FL_PATH_MAX] = {};
+	Config::collision_tile_ids_path(coll_ids, directory);
+	remove_suffix(tileset_name, base_name);
+	if (file_exists(coll_ids) && !read_passable_tiles(coll_ids, tileset_labels(directory, base_name), _passable_tiles)) {
+		_passable_tiles.clear();
+	}
+
 	if (tileset.has_roof()) {
 		Config::roof_path(buffer, directory, roof_name);
 		rt = tileset.read_roof_graphics(buffer);
@@ -2651,6 +2665,7 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 	mw->_metatile_hotkeys.clear();
 	mw->_map_group->clear();
 	mw->_hidden_object_markers.clear(); // deleted with the other widgets of the map
+	mw->_passable_tiles.clear();
 	mw->_map_group->size(0, 0);
 	mw->_map.clear();
 	mw->_map_events.clear();
@@ -3076,6 +3091,7 @@ void Main_Window::exit_cb(Fl_Widget *, Main_Window *mw) {
 	Preferences::set("event", mw->show_events());
 	Preferences::set("warp-ids", mw->show_warp_ids());
 	Preferences::set("unused", mw->highlight_unused());
+	Preferences::set("collisions", mw->show_collisions());
 	Preferences::set("transparent", mw->transparent());
 	Preferences::set("palettes", (int)mw->palettes());
 	Preferences::set("monochrome", mw->monochrome());
@@ -3315,6 +3331,18 @@ void Main_Window::show_warp_ids_cb(Fl_Menu_ *m, Main_Window *mw) {
 
 void Main_Window::highlight_unused_cb(Fl_Menu_ *, Main_Window *mw) {
 	mw->redraw();
+}
+
+void Main_Window::show_collisions_cb(Fl_Menu_ *, Main_Window *mw) {
+	mw->redraw();
+}
+
+// Whether the player cannot walk on a square (a quarter of a block). In pokered and pokeyellow
+// the bottom left tile of the square decides it.
+bool Main_Window::square_blocked(uint8_t block_id, int qx, int qy) {
+	if (_passable_tiles.empty() || block_id >= _metatileset.size()) { return false; }
+	uint8_t tile = _metatileset.metatile(block_id)->tile_id(qx * 2, qy * 2 + 1);
+	return !_passable_tiles[tile];
 }
 
 #undef SYNC_TB_WITH_M
