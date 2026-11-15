@@ -8,11 +8,12 @@
 #pragma warning(pop)
 
 #include "widgets.h"
+#include "smooth-icon.h"
 
 class Modal_Dialog {
 public:
 	enum class Icon { NO_ICON, SUCCESS_ICON, WARNING_ICON, ERROR_ICON, APP_ICON };
-	static Fl_Pixmap SUCCESS_SHIELD_ICON, WARNING_SHIELD_ICON, ERROR_SHIELD_ICON, PROGRAM_ICON;
+	static Smooth_Icon SUCCESS_SHIELD_ICON, WARNING_SHIELD_ICON, ERROR_SHIELD_ICON, PROGRAM_ICON;
 private:
 	Icon _icon_type;
 	std::string _title, _subject, _message;

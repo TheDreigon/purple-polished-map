@@ -19,10 +19,10 @@
 #include "success.xpm"
 #include "app.xpm"
 
-Fl_Pixmap Modal_Dialog::SUCCESS_SHIELD_ICON(SUCCESS_XPM);
-Fl_Pixmap Modal_Dialog::WARNING_SHIELD_ICON(WARNING_XPM);
-Fl_Pixmap Modal_Dialog::ERROR_SHIELD_ICON(ERROR_XPM);
-Fl_Pixmap Modal_Dialog::PROGRAM_ICON(APP_XPM);
+Smooth_Icon Modal_Dialog::SUCCESS_SHIELD_ICON(SUCCESS_XPM);
+Smooth_Icon Modal_Dialog::WARNING_SHIELD_ICON(WARNING_XPM);
+Smooth_Icon Modal_Dialog::ERROR_SHIELD_ICON(ERROR_XPM);
+Smooth_Icon Modal_Dialog::PROGRAM_ICON(APP_XPM);
 
 Modal_Dialog::Modal_Dialog(Fl_Window *top, const char *t, Icon c, bool cancel) : _icon_type(c),
 	_title(t), _subject(), _message(), _min_w(0), _max_w(1000), _canceled(cancel),

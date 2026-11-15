@@ -5,6 +5,8 @@
 #include <FL/Fl_Pixmap.H>
 #pragma warning(pop)
 
+#include "smooth-icon.h"
+
 #include "blank.xpm"
 #include "new.xpm"
 #include "open.xpm"
@@ -49,46 +51,46 @@
 #include "coll-bottom-right-dark.xpm"
 
 static Fl_Pixmap BLANK_ICON(BLANK_XPM);
-static Fl_Pixmap NEW_ICON(NEW_XPM);
-static Fl_Pixmap OPEN_ICON(OPEN_XPM);
-static Fl_Pixmap LOAD_ICON(LOAD_XPM);
-static Fl_Pixmap RELOAD_ICON(RELOAD_XPM);
-static Fl_Pixmap SAVE_ICON(SAVE_XPM);
-static Fl_Pixmap PRINT_ICON(PRINT_XPM);
-static Fl_Pixmap UNDO_ICON(UNDO_XPM);
-static Fl_Pixmap REDO_ICON(REDO_XPM);
-static Fl_Pixmap GRID_ICON(GRID_XPM);
-static Fl_Pixmap GRID_DARK_ICON(GRID_DARK_XPM);
-static Fl_Pixmap RULERS_ICON(RULERS_XPM);
-static Fl_Pixmap ZOOM_ICON(ZOOM_XPM);
-static Fl_Pixmap IDS_ICON(IDS_XPM);
-static Fl_Pixmap IDS_DARK_ICON(IDS_DARK_XPM);
-static Fl_Pixmap HEX_ICON(HEX_XPM);
-static Fl_Pixmap HEX_DARK_ICON(HEX_DARK_XPM);
-static Fl_Pixmap SHOW_ICON(SHOW_XPM);
-static Fl_Pixmap WARP_ICON(WARP_XPM);
-static Fl_Pixmap PRIORITY_ICON(PRIORITY_XPM);
-static Fl_Pixmap GAMEBOY_ICON(GAMEBOY_XPM);
-static Fl_Pixmap BLOCKS_ICON(BLOCKS_XPM);
-static Fl_Pixmap BLOCKS_DARK_ICON(BLOCKS_DARK_XPM);
-static Fl_Pixmap EVENTS_ICON(EVENTS_XPM);
-static Fl_Pixmap ADD_SUB_ICON(ADD_SUB_XPM);
-static Fl_Pixmap RESIZE_ICON(RESIZE_XPM);
-static Fl_Pixmap CHANGE_ICON(CHANGE_XPM);
-static Fl_Pixmap CHANGE_ROOF_ICON(CHANGE_ROOF_XPM);
-static Fl_Pixmap TILESET_ICON(TILESET_XPM);
-static Fl_Pixmap ROOF_ICON(ROOF_XPM);
-static Fl_Pixmap PALETTES_ICON(PALETTES_XPM);
-static Fl_Pixmap LOAD_PALETTES_ICON(LOAD_PALETTES_XPM);
-static Fl_Pixmap COPY_ICON(COPY_XPM);
-static Fl_Pixmap PASTE_ICON(PASTE_XPM);
-static Fl_Pixmap COLL_TOP_LEFT_ICON(COLL_TOP_LEFT_XPM);
-static Fl_Pixmap COLL_TOP_LEFT_DARK_ICON(COLL_TOP_LEFT_DARK_XPM);
-static Fl_Pixmap COLL_TOP_RIGHT_ICON(COLL_TOP_RIGHT_XPM);
-static Fl_Pixmap COLL_TOP_RIGHT_DARK_ICON(COLL_TOP_RIGHT_DARK_XPM);
-static Fl_Pixmap COLL_BOTTOM_LEFT_ICON(COLL_BOTTOM_LEFT_XPM);
-static Fl_Pixmap COLL_BOTTOM_LEFT_DARK_ICON(COLL_BOTTOM_LEFT_DARK_XPM);
-static Fl_Pixmap COLL_BOTTOM_RIGHT_ICON(COLL_BOTTOM_RIGHT_XPM);
-static Fl_Pixmap COLL_BOTTOM_RIGHT_DARK_ICON(COLL_BOTTOM_RIGHT_DARK_XPM);
+static Smooth_Icon NEW_ICON(NEW_XPM);
+static Smooth_Icon OPEN_ICON(OPEN_XPM);
+static Smooth_Icon LOAD_ICON(LOAD_XPM);
+static Smooth_Icon RELOAD_ICON(RELOAD_XPM);
+static Smooth_Icon SAVE_ICON(SAVE_XPM);
+static Smooth_Icon PRINT_ICON(PRINT_XPM);
+static Smooth_Icon UNDO_ICON(UNDO_XPM);
+static Smooth_Icon REDO_ICON(REDO_XPM);
+static Smooth_Icon GRID_ICON(GRID_XPM);
+static Smooth_Icon GRID_DARK_ICON(GRID_DARK_XPM);
+static Smooth_Icon RULERS_ICON(RULERS_XPM);
+static Smooth_Icon ZOOM_ICON(ZOOM_XPM);
+static Smooth_Icon IDS_ICON(IDS_XPM);
+static Smooth_Icon IDS_DARK_ICON(IDS_DARK_XPM);
+static Smooth_Icon HEX_ICON(HEX_XPM);
+static Smooth_Icon HEX_DARK_ICON(HEX_DARK_XPM);
+static Smooth_Icon SHOW_ICON(SHOW_XPM);
+static Smooth_Icon WARP_ICON(WARP_XPM);
+static Smooth_Icon PRIORITY_ICON(PRIORITY_XPM);
+static Smooth_Icon GAMEBOY_ICON(GAMEBOY_XPM);
+static Smooth_Icon BLOCKS_ICON(BLOCKS_XPM);
+static Smooth_Icon BLOCKS_DARK_ICON(BLOCKS_DARK_XPM);
+static Smooth_Icon EVENTS_ICON(EVENTS_XPM);
+static Smooth_Icon ADD_SUB_ICON(ADD_SUB_XPM);
+static Smooth_Icon RESIZE_ICON(RESIZE_XPM);
+static Smooth_Icon CHANGE_ICON(CHANGE_XPM);
+static Smooth_Icon CHANGE_ROOF_ICON(CHANGE_ROOF_XPM);
+static Smooth_Icon TILESET_ICON(TILESET_XPM);
+static Smooth_Icon ROOF_ICON(ROOF_XPM);
+static Smooth_Icon PALETTES_ICON(PALETTES_XPM);
+static Smooth_Icon LOAD_PALETTES_ICON(LOAD_PALETTES_XPM);
+static Smooth_Icon COPY_ICON(COPY_XPM);
+static Smooth_Icon PASTE_ICON(PASTE_XPM);
+static Smooth_Icon COLL_TOP_LEFT_ICON(COLL_TOP_LEFT_XPM);
+static Smooth_Icon COLL_TOP_LEFT_DARK_ICON(COLL_TOP_LEFT_DARK_XPM);
+static Smooth_Icon COLL_TOP_RIGHT_ICON(COLL_TOP_RIGHT_XPM);
+static Smooth_Icon COLL_TOP_RIGHT_DARK_ICON(COLL_TOP_RIGHT_DARK_XPM);
+static Smooth_Icon COLL_BOTTOM_LEFT_ICON(COLL_BOTTOM_LEFT_XPM);
+static Smooth_Icon COLL_BOTTOM_LEFT_DARK_ICON(COLL_BOTTOM_LEFT_DARK_XPM);
+static Smooth_Icon COLL_BOTTOM_RIGHT_ICON(COLL_BOTTOM_RIGHT_XPM);
+static Smooth_Icon COLL_BOTTOM_RIGHT_DARK_ICON(COLL_BOTTOM_RIGHT_DARK_XPM);
 
 #endif
