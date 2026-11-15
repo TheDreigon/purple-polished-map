@@ -22,6 +22,7 @@
 #include "map.h"
 #include "map-events.h"
 #include "hidden-objects.h"
+#include "map-connections.h"
 #include "gameboy-screen.h"
 #include "help-window.h"
 #include "block-window.h"
@@ -51,7 +52,7 @@ private:
 		*_greybird_theme_mi = NULL, *_ocean_theme_mi = NULL, *_blue_theme_mi = NULL, *_olive_theme_mi = NULL,
 		*_rose_gold_theme_mi = NULL, *_dark_theme_mi = NULL, *_brushed_metal_theme_mi = NULL, *_high_contrast_theme_mi = NULL;
 	Fl_Menu_Item *_grid_mi = NULL, *_rulers_mi, *_zoom_mi = NULL, *_ids_mi = NULL, *_hex_mi = NULL, *_show_priority_mi = NULL,
-		*_gameboy_screen_mi = NULL, *_show_events_mi = NULL, *_show_warp_ids_mi = NULL, *_highlight_unused_mi = NULL, *_show_collisions_mi = NULL, *_transparent_mi = NULL,
+		*_gameboy_screen_mi = NULL, *_show_events_mi = NULL, *_show_warp_ids_mi = NULL, *_highlight_unused_mi = NULL, *_show_collisions_mi = NULL, *_show_connections_mi = NULL, *_transparent_mi = NULL,
 		*_full_screen_mi = NULL;
 	Fl_Menu_Item *_morn_mi = NULL, *_day_mi = NULL, *_night_mi = NULL, *_darkness_mi = NULL, *_indoor_mi = NULL,
 		*_custom_mi = NULL;
@@ -104,6 +105,7 @@ private:
 	Map _map;
 	Map_Events _map_events;
 	std::vector<Hidden_Object_Marker *> _hidden_object_markers;
+	std::vector<Connection_View *> _connection_views;
 	std::vector<bool> _passable_tiles; // empty when the project does not say
 	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
@@ -142,6 +144,7 @@ public:
 	inline bool block_used(uint8_t id) const { return _map.uses_block(id); }
 	inline bool show_collisions(void) const { return _show_collisions_mi && !!_show_collisions_mi->value(); }
 	inline bool has_passable_tiles(void) const { return !_passable_tiles.empty(); }
+	inline bool show_connections(void) const { return _show_connections_mi && !!_show_connections_mi->value(); }
 	bool square_blocked(uint8_t block_id, int qx, int qy);
 	inline bool full_screen(void) const { return _full_screen_mi && !!_full_screen_mi->value(); }
 	inline Palettes palettes(void) const { return (Palettes)_palettes->value(); }
@@ -200,7 +203,8 @@ private:
 	void view_event_script(Event *e);
 	void add_event_at(Block *b);
 	void load_hidden_objects(void);
-	void resize_hidden_objects(int x, int y, int s) const;
+	void load_connections(void);
+	void resize_overlays(int x, int y, int s) const;
 	void load_palettes(const char *filename, const char *auto_option = NULL);
 	void load_roof_colors(bool quiet);
 	bool read_metatile_data(const char *tileset_name, const char *roof_name);
@@ -278,6 +282,7 @@ private:
 	static void show_warp_ids_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void highlight_unused_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void show_collisions_cb(Fl_Menu_ *m, Main_Window *mw);
+	static void show_connections_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void transparent_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void morn_palettes_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void day_palettes_cb(Fl_Menu_ *m, Main_Window *mw);

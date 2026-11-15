@@ -111,6 +111,9 @@
     <ClCompile Include="..\src\collision-tiles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\map-connections.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\palette-window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -219,6 +222,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\collision-tiles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\map-connections.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\palette-window.h">

@@ -16,6 +16,7 @@ All credit for Polished Map goes to Rangi and its contributors. The license ([LG
 - In pokered and pokeyellow projects, the map shows where its hidden objects are (read-only, from data/events/hidden_objects.asm).
 - **View > Highlight Unused** puts stripes over the blocks the map does not use and, in the tileset editor, over the tiles no block uses.
 - **View > Show Collisions** puts red stripes over the squares that cannot be walked on, in pokered and pokeyellow projects.
+- **View > Show Connections** shows the edges of the connected maps in the margin around the map, read-only.
 - It has [automated tests](tests/README.md) for the code that reads and writes maps, blocksets, tilesets and events.
 
 More fixes are on the way. Each one is a separate commit that explains what it changes.

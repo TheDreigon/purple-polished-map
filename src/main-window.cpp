@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <fstream>
 #include <queue>
 #include <utility>
 
@@ -86,6 +87,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	int show_warp_ids_config = Preferences::get("warp-ids", 1);
 	int highlight_unused_config = Preferences::get("unused", 0);
 	int show_collisions_config = Preferences::get("collisions", 0);
+	int show_connections_config = Preferences::get("connections", 1);
 	Palettes palettes_config = (Palettes)Preferences::get("palettes", (int)Palettes::DAY);
 
 	int monochrome_config = Preferences::get("monochrome", 0);
@@ -396,7 +398,9 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 		OS_MENU_ITEM("Highlight &Unused", FL_COMMAND + 'U', (Fl_Callback *)highlight_unused_cb, this,
 			FL_MENU_TOGGLE | (highlight_unused_config ? FL_MENU_VALUE : 0)),
 		OS_MENU_ITEM("Show &Collisions", FL_COMMAND + 'C', (Fl_Callback *)show_collisions_cb, this,
-			FL_MENU_TOGGLE | (show_collisions_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
+			FL_MENU_TOGGLE | (show_collisions_config ? FL_MENU_VALUE : 0)),
+		OS_MENU_ITEM("Show Co&nnections", 0, (Fl_Callback *)show_connections_cb, this,
+			FL_MENU_TOGGLE | (show_connections_config ? FL_MENU_VALUE : 0) | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("Pa&lettes", 0, NULL, NULL, FL_SUBMENU | FL_MENU_DIVIDER),
 		OS_MENU_ITEM("&Morn", 0, (Fl_Callback *)morn_palettes_cb, this,
 			FL_MENU_RADIO | (palettes_config == Palettes::MORN ? FL_MENU_VALUE : 0)),
@@ -498,6 +502,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_show_warp_ids_mi = PM_FIND_MENU_ITEM_CB(show_warp_ids_cb);
 	_highlight_unused_mi = PM_FIND_MENU_ITEM_CB(highlight_unused_cb);
 	_show_collisions_mi = PM_FIND_MENU_ITEM_CB(show_collisions_cb);
+	_show_connections_mi = PM_FIND_MENU_ITEM_CB(show_connections_cb);
 	_transparent_mi = PM_FIND_MENU_ITEM_CB(transparent_cb);
 	_full_screen_mi = PM_FIND_MENU_ITEM_CB(full_screen_cb);
 	_morn_mi = PM_FIND_MENU_ITEM_CB(morn_palettes_cb);
@@ -1474,6 +1479,9 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 	// show the hidden objects of pokered and pokeyellow maps
 	load_hidden_objects();
 
+	// show the edges of the maps this one connects to
+	load_connections();
+
 	update_active_controls();
 	update_labels();
 	update_status((Block *)NULL);
@@ -1550,7 +1558,7 @@ void Main_Window::load_events(const char *filename) {
 	}
 
 	_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
-	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	size_t n = _map_events.size();
 	for (size_t i = 0; i < n; i++) {
 		Event *event = _map_events.event(i);
@@ -1591,13 +1599,76 @@ void Main_Window::load_hidden_objects() {
 		_map_group->add(marker);
 		_hidden_object_markers.push_back(marker);
 	}
-	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
 }
 
-void Main_Window::resize_hidden_objects(int x, int y, int s) const {
+// Places the hidden object markers and connection views over the map; s is the size of
+// a square (half a block), as for events
+void Main_Window::resize_overlays(int x, int y, int s) const {
 	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
 		marker->reposition(x, y, s);
 	}
+	for (Connection_View *view : _connection_views) {
+		view->reposition(x, y, s * 2);
+	}
+}
+
+// Shows, in the margin around the map, the edges of the maps it connects to (from pokered's
+// map header or pokecrystal's data/maps/attributes.asm), read-only
+void Main_Window::load_connections() {
+	_connection_views.clear(); // the old ones went away with the map's widgets
+	if (_blk_file.empty()) { return; }
+	const char *directory = _directory.c_str();
+	char map_name[FL_PATH_MAX] = {}, header[FL_PATH_MAX] = {}, constants[FL_PATH_MAX] = {};
+	remove_dot_ext(_blk_file.c_str(), map_name);
+	Config::map_header_path(header, directory, map_name);
+	if (!file_exists(header)) {
+		sprintf(header, "%sdata" DIR_SEP "maps" DIR_SEP "attributes.asm", directory);
+	}
+	std::vector<Map_Connection> connections;
+	if (!read_map_connections(header, map_name, connections) || connections.empty()) { return; }
+	Config::map_constants_path(constants, directory);
+	char tileset_name[FL_PATH_MAX] = {};
+	remove_suffix(_metatileset.tileset().name(), tileset_name);
+
+	for (const Map_Connection &c : connections) {
+		int cw = 0, ch = 0;
+		if (!read_map_size(constants, c.map_constant.c_str(), cw, ch)) { continue; }
+		// The connected map's .blk file is next to this one's
+		char blk[FL_PATH_MAX] = {};
+		strcpy(blk, _blk_file.c_str());
+		char *name = const_cast<char *>(fl_filename_name(blk));
+		strcpy(name, c.map_name.c_str());
+		strcat(blk, fl_filename_ext(_blk_file.c_str()));
+		std::ifstream ifs;
+		open_ifstream(ifs, blk);
+		if (!ifs.good()) { continue; }
+		std::vector<uint8_t> ids((size_t)cw * ch);
+		ifs.read((char *)ids.data(), (std::streamsize)ids.size());
+		if ((size_t)ifs.gcount() != ids.size()) { continue; }
+		// Its blocks only mean something with the same tileset (pokered says which in its header)
+		bool drawable = true;
+		char other_header[FL_PATH_MAX] = {};
+		Config::map_header_path(other_header, directory, c.map_name.c_str());
+		std::string other_tileset = file_exists(other_header) ? read_map_header_tileset(other_header) : "";
+		if (!other_tileset.empty()) {
+			char file_name[FL_PATH_MAX] = {};
+			if (!Config::tileset_file_name(file_name, directory, other_tileset.c_str())) {
+				strcpy(file_name, other_tileset.c_str());
+			}
+			drawable = !strcmp(file_name, tileset_name);
+		}
+		Connection_View *view = new Connection_View(c, ids, cw, ch, _map.width(), _map.height(), drawable);
+		if (view->empty()) {
+			delete view;
+			continue;
+		}
+		view->user_data(this);
+		// Under the events, which can be dragged into the margin
+		_map_group->insert(*view, (int)_map.size());
+		_connection_views.push_back(view);
+	}
+	resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
 }
 
 // Right-clicking an empty spot in Events Mode offers to add an event there. The new event is
@@ -1653,7 +1724,7 @@ void Main_Window::add_event_at(Block *b) {
 	e->callback((Fl_Callback *)change_event_cb, this);
 	_map_group->add(e);
 	_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
-	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	redraw();
 
 	// Fill in the new event right away; Cancel takes it back
@@ -1669,7 +1740,7 @@ void Main_Window::add_event_at(Block *b) {
 		_event_options_dialog->update_event(e);
 		_map_events.refresh_warps();
 		_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
-		resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
+		resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	}
 	update_active_controls();
 	redraw();
@@ -2023,6 +2094,11 @@ void Main_Window::resize_map(int w, int h) {
 	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
 		_map_group->add(marker);
 	}
+	// The connections depend on the map's size, so they are made again below
+	for (Connection_View *view : _connection_views) {
+		delete view;
+	}
+	_connection_views.clear();
 
 	int ms = metatile_size();
 	_map_group->size(ms * ((int)w + EVENT_MARGIN), ms * ((int)h + EVENT_MARGIN));
@@ -2037,11 +2113,12 @@ void Main_Window::resize_map(int w, int h) {
 		}
 	}
 	_map.resize_blocks(_map_group->x(), _map_group->y(), ms);
+	load_connections();
 
 	_map_scroll->scroll_to(0, 0);
 	_map_scroll->init_sizes();
 	_map_events.resize_events(_map_group->x(), _map_group->y(), ms / 2);
-	resize_hidden_objects(_map_group->x(), _map_group->y(), ms / 2);
+	resize_overlays(_map_group->x(), _map_group->y(), ms / 2);
 	_map_scroll->contents(_map_group->w(), _map_group->h());
 
 	_map.modified(true);
@@ -2518,7 +2595,7 @@ void Main_Window::update_layout() {
 	int mx = _map_group->x(), my = _map_group->y();
 	_map.resize_blocks(mx, my, ms);
 	_map_events.resize_events(mx, my, ms / 2);
-	resize_hidden_objects(mx, my, ms / 2);
+	resize_overlays(mx, my, ms / 2);
 }
 
 void Main_Window::update_labels() {
@@ -2665,6 +2742,7 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 	mw->_metatile_hotkeys.clear();
 	mw->_map_group->clear();
 	mw->_hidden_object_markers.clear(); // deleted with the other widgets of the map
+	mw->_connection_views.clear();
 	mw->_passable_tiles.clear();
 	mw->_map_group->size(0, 0);
 	mw->_map.clear();
@@ -3092,6 +3170,7 @@ void Main_Window::exit_cb(Fl_Widget *, Main_Window *mw) {
 	Preferences::set("warp-ids", mw->show_warp_ids());
 	Preferences::set("unused", mw->highlight_unused());
 	Preferences::set("collisions", mw->show_collisions());
+	Preferences::set("connections", mw->show_connections());
 	Preferences::set("transparent", mw->transparent());
 	Preferences::set("palettes", (int)mw->palettes());
 	Preferences::set("monochrome", mw->monochrome());
@@ -3334,6 +3413,10 @@ void Main_Window::highlight_unused_cb(Fl_Menu_ *, Main_Window *mw) {
 }
 
 void Main_Window::show_collisions_cb(Fl_Menu_ *, Main_Window *mw) {
+	mw->redraw();
+}
+
+void Main_Window::show_connections_cb(Fl_Menu_ *, Main_Window *mw) {
 	mw->redraw();
 }
 
