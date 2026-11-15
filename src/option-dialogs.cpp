@@ -128,26 +128,6 @@ const char *Map_Options_Dialog::original_name(const char *pretty_name) const {
 	return it->second.c_str();
 }
 
-inline static bool isupperordigit(int c) { return isupper(c) || isdigit(c); }
-inline static int toconstant(int c) { return isalnum(c) ? toupper(c) : '_'; }
-
-static void guess_map_constant(const char *name, char *constant) {
-	char prev = (char)toconstant(*name);
-	*constant++ = (char)toupper(*name++);
-
-	const char *p = strchr(name, '.');
-	size_t n = p ? p - name : strlen(name); // ignore extension and attribute data
-	for (size_t i = 0; i < n; i++) {
-		char c = *name;
-		if ((islower(prev) && isupperordigit(c)) || // ...zA... -> ...Z_A...
-			(i < n - 1 && isupperordigit(prev) && isupper(c) && islower(name[1]))) { // ...ZAb... -> ...Z_AB...
-			*constant++ = '_';
-		}
-		prev = c;
-		*constant++ = (char)toconstant(*name++);
-	}
-	*constant = '\0';
-}
 
 bool Map_Options_Dialog::guess_map_size(const char *filename, const char *directory, Map_Attributes &attrs) {
 	_map_sizes->clear();
@@ -193,7 +173,7 @@ bool Map_Options_Dialog::guess_map_size(const char *filename, const char *direct
 	if (!ifs.good()) { return false; }
 
 	char constant[FL_PATH_MAX] = {};
-	guess_map_constant(name, constant);
+	Config::map_constant(constant, name);
 
 	attrs.group = 0;
 	while (ifs.good()) {

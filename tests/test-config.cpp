@@ -216,6 +216,25 @@ TEST(config_has_no_tileset_names_without_gfx_tilesets_asm) {
 	CHECK(!Config::tileset_file_name(name, project.c_str(), "mart"));
 }
 
+TEST(config_turns_a_map_name_into_its_constant) {
+	char constant[FL_PATH_MAX] = {};
+	const char *cases[][2] = {
+		{"PalletTown", "PALLET_TOWN"},
+		{"RedsHouse1F", "REDS_HOUSE_1F"},
+		{"SSAnne1F", "SS_ANNE_1F"},
+		{"Route22Gate", "ROUTE_22_GATE"},
+		{"UnionCaveB1F", "UNION_CAVE_B1F"},
+		{"Kanto.180x135.kanto.blk", "KANTO"},
+		{"Route1.blk", "ROUTE_1"},
+	};
+	for (auto &c : cases) {
+		Config::map_constant(constant, c[0]);
+		CHECK_EQ(constant, c[1]);
+	}
+	Config::map_constant(constant, "");
+	CHECK_EQ(constant, "");
+}
+
 TEST(config_finds_the_events_of_a_map_file) {
 	std::string project = make_project({
 		"maps/NewBarkTown.blk",

@@ -216,6 +216,33 @@ bool Config::collisions_path(char *dest, const char *root, const char *tileset) 
 	return _collisions_path(dest, root, name);
 }
 
+inline static bool isupperordigit(int c) { return isupper(c) || isdigit(c); }
+inline static int toconstant(int c) { return isalnum(c) ? toupper(c) : '_'; }
+
+// The constant of a map from its name, the way pret names them:
+// "RedsHouse1F" -> "REDS_HOUSE_1F", "SSAnne1F" -> "SS_ANNE_1F", "Route22Gate" -> "ROUTE_22_GATE".
+// Anything after a dot in the name (an extension or size) is left out.
+void Config::map_constant(char *dest, const char *map_name) {
+	const char *name = map_name;
+	char *constant = dest;
+	if (!*name) { *constant = '\0'; return; }
+	char prev = (char)toconstant(*name);
+	*constant++ = (char)toupper(*name++);
+
+	const char *p = strchr(name, '.');
+	size_t n = p ? p - name : strlen(name); // ignore extension and attribute data
+	for (size_t i = 0; i < n; i++) {
+		char c = *name;
+		if ((islower(prev) && isupperordigit(c)) || // ...zA... -> ...Z_A...
+			(i < n - 1 && isupperordigit(prev) && isupper(c) && islower(name[1]))) { // ...ZAb... -> ...Z_AB...
+			*constant++ = '_';
+		}
+		prev = c;
+		*constant++ = (char)toconstant(*name++);
+	}
+	*constant = '\0';
+}
+
 void Config::map_constants_path(char *dest, const char *root) {
 	// try constants/map_dimension_constants.asm (Prism)
 	sprintf(dest, "%sconstants" DIR_SEP "map_dimension_constants.asm", root);
