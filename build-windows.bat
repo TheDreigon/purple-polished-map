@@ -11,8 +11,10 @@ rem Usage:
 rem   build-windows.bat         build FLTK if it is not built yet, then the program
 rem   build-windows.bat fltk    download (if needed) and build only FLTK
 rem   build-windows.bat app     build only the program
+rem   build-windows.bat test    build FLTK if it is not built yet, then build and run the tests
 rem
 rem The result is bin\Release\purple-polished-map.exe (32-bit, like the official releases).
+rem The tests are bin\Release\purple-polished-map-tests.exe; see tests\README.md.
 
 setlocal
 
@@ -29,7 +31,8 @@ if "%WHAT%"=="" set "WHAT=all"
 if /i "%WHAT%"=="all" goto find_tools
 if /i "%WHAT%"=="fltk" goto find_tools
 if /i "%WHAT%"=="app" goto find_tools
-echo Usage: %~nx0 [all^|fltk^|app]
+if /i "%WHAT%"=="test" goto find_tools
+echo Usage: %~nx0 [all^|fltk^|app^|test]
 exit /b 2
 
 :find_tools
@@ -51,7 +54,7 @@ where ninja >nul 2>nul || goto no_cmake
 
 if /i "%WHAT%"=="app" goto app
 if /i "%WHAT%"=="fltk" goto fltk
-if exist "%ROOT%\lib\fltk_images.lib" if exist "%ROOT%\include\FL\fl_config.h" goto app
+if exist "%ROOT%\lib\fltk_images.lib" if exist "%ROOT%\include\FL\fl_config.h" goto build
 
 :fltk
 if exist "%FLTK_SRC%\CMakeLists.txt" goto fltk_configure
@@ -78,6 +81,9 @@ xcopy /e /i /y /q "%FLTK_SRC%\FL" "%ROOT%\include\FL" >nul || goto failed
 copy /y "%FLTK_BUILD%\FL\fl_config.h" "%ROOT%\include\FL\" >nul || goto failed
 if /i "%WHAT%"=="fltk" goto done
 
+:build
+if /i "%WHAT%"=="test" goto test
+
 :app
 echo === Building the program (Release, Win32) ===
 msbuild "%ROOT%\ide\polished-map.sln" /m /nologo /v:minimal /p:Configuration=Release /p:Platform=Win32 || goto failed
@@ -86,6 +92,18 @@ echo Built: %ROOT%\bin\Release\purple-polished-map.exe
 
 :done
 exit /b 0
+
+:test
+echo === Building the tests (Release, Win32) ===
+msbuild "%ROOT%\ide\polished-map-tests.vcxproj" /m /nologo /v:minimal /p:Configuration=Release /p:Platform=Win32 || goto failed
+echo === Running the tests ===
+"%ROOT%\bin\Release\purple-polished-map-tests.exe" --root "%ROOT%" || goto tests_failed
+exit /b 0
+
+:tests_failed
+echo.
+echo Some tests failed.
+exit /b 1
 
 :no_tools
 echo Could not find the Visual Studio C++ build tools.

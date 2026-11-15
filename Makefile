@@ -13,6 +13,8 @@ resdir = res
 tmpdir = tmp
 debugdir = tmp/debug
 bindir = bin
+testdir = tests
+testtmpdir = tmp/tests
 
 fltk-config = $(bindir)/fltk-config
 
@@ -30,7 +32,15 @@ TARGET = $(bindir)/$(polishedmap)
 DEBUGTARGET = $(bindir)/$(polishedmapd)
 DESKTOP = "$(DESTDIR)$(PREFIX)/share/applications/Purple Polished Map.desktop"
 
-.PHONY: all $(polishedmap) $(polishedmapd) release debug clean install uninstall
+# The tests are every source file of the program except main.cpp, plus tests/*.cpp
+TESTFLAGS = -DNDEBUG -O1
+TESTCOMMON = $(wildcard $(testdir)/*.h)
+TESTSOURCES = $(wildcard $(testdir)/*.cpp)
+TESTOBJECTS = $(TESTSOURCES:$(testdir)/%.cpp=$(testtmpdir)/%.o) \
+	$(filter-out $(testtmpdir)/main.o,$(SOURCES:$(srcdir)/%.cpp=$(testtmpdir)/%.o))
+TESTTARGET = $(bindir)/$(polishedmap)-tests
+
+.PHONY: all $(polishedmap) $(polishedmapd) release debug check clean install uninstall
 
 .SUFFIXES: .o .cpp
 
@@ -61,8 +71,25 @@ $(debugdir)/%.o: $(srcdir)/%.cpp $(COMMON)
 	@mkdir -p $(@D)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
+# Builds and runs the tests
+check: CXXFLAGS := $(TESTFLAGS) -I$(testdir) $(CXXFLAGS)
+check: $(TESTTARGET)
+	$(TESTTARGET) --root .
+
+$(TESTTARGET): $(TESTOBJECTS)
+	@mkdir -p $(@D)
+	$(LD) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
+
+$(testtmpdir)/%.o: $(srcdir)/%.cpp $(COMMON)
+	@mkdir -p $(@D)
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(testtmpdir)/%.o: $(testdir)/%.cpp $(COMMON) $(TESTCOMMON)
+	@mkdir -p $(@D)
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
 clean:
-	$(RM) $(TARGET) $(DEBUGTARGET) $(OBJECTS) $(DEBUGOBJECTS)
+	$(RM) $(TARGET) $(DEBUGTARGET) $(OBJECTS) $(DEBUGOBJECTS) $(TESTTARGET) $(TESTOBJECTS)
 
 install: release
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
