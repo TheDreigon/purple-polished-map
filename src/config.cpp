@@ -362,6 +362,11 @@ bool Config::tileset_file_name(char *dest, const char *root, const char *tileset
 	return false;
 }
 
+void Config::hidden_objects_path(char *dest, const char *root) {
+	// data/events/hidden_objects.asm (pokered, pokeyellow)
+	sprintf(dest, "%sdata" DIR_SEP "events" DIR_SEP "hidden_objects.asm", root);
+}
+
 void Config::tileset_constants_path(char *dest, const char *root) {
 	// try constants/tileset_constants.asm (pokecrystal)
 	sprintf(dest, "%sconstants" DIR_SEP "tileset_constants.asm", root);

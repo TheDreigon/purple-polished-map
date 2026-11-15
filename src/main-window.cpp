@@ -1462,6 +1462,9 @@ void Main_Window::open_map(const char *directory, const char *filename) {
 		}
 	}
 
+	// show the hidden objects of pokered and pokeyellow maps
+	load_hidden_objects();
+
 	update_active_controls();
 	update_labels();
 	update_status((Block *)NULL);
@@ -1538,6 +1541,7 @@ void Main_Window::load_events(const char *filename) {
 	}
 
 	_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	size_t n = _map_events.size();
 	for (size_t i = 0; i < n; i++) {
 		Event *event = _map_events.event(i);
@@ -1557,6 +1561,34 @@ void Main_Window::unload_events() {
 	}
 	_map_events.clear();
 	_asm_file = "";
+}
+
+// pokered and pokeyellow list hidden objects (hidden items, PCs, bookshelves...) apart from
+// the map's events, in data/events/hidden_objects.asm. Show where they are, read-only.
+void Main_Window::load_hidden_objects() {
+	_hidden_object_markers.clear(); // the old ones went away with the map's widgets
+	if (_blk_file.empty()) { return; }
+	char filename[FL_PATH_MAX] = {}, map_name[FL_PATH_MAX] = {}, map_constant[FL_PATH_MAX] = {};
+	Config::hidden_objects_path(filename, _directory.c_str());
+	if (!file_exists(filename)) { return; }
+	remove_dot_ext(_blk_file.c_str(), map_name);
+	Config::map_constant(map_constant, map_name);
+
+	std::vector<Hidden_Object> objects;
+	if (!read_hidden_objects(filename, map_constant, objects)) { return; }
+	for (const Hidden_Object &object : objects) {
+		Hidden_Object_Marker *marker = new Hidden_Object_Marker(object);
+		marker->user_data(this);
+		_map_group->add(marker);
+		_hidden_object_markers.push_back(marker);
+	}
+	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
+}
+
+void Main_Window::resize_hidden_objects(int x, int y, int s) const {
+	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		marker->reposition(x, y, s);
+	}
 }
 
 // Right-clicking an empty spot in Events Mode offers to add an event there. The new event is
@@ -1612,6 +1644,7 @@ void Main_Window::add_event_at(Block *b) {
 	e->callback((Fl_Callback *)change_event_cb, this);
 	_map_group->add(e);
 	_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
+	resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	redraw();
 
 	// Fill in the new event right away; Cancel takes it back
@@ -1627,6 +1660,7 @@ void Main_Window::add_event_at(Block *b) {
 		_event_options_dialog->update_event(e);
 		_map_events.refresh_warps();
 		_map_events.resize_events(_map_group->x(), _map_group->y(), metatile_size() / 2);
+		resize_hidden_objects(_map_group->x(), _map_group->y(), metatile_size() / 2);
 	}
 	update_active_controls();
 	redraw();
@@ -1967,6 +2001,10 @@ void Main_Window::resize_map(int w, int h) {
 		}
 		_map_group->add(e);
 	}
+	// The hidden objects stay where their file puts them
+	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		_map_group->add(marker);
+	}
 
 	int ms = metatile_size();
 	_map_group->size(ms * ((int)w + EVENT_MARGIN), ms * ((int)h + EVENT_MARGIN));
@@ -1985,6 +2023,7 @@ void Main_Window::resize_map(int w, int h) {
 	_map_scroll->scroll_to(0, 0);
 	_map_scroll->init_sizes();
 	_map_events.resize_events(_map_group->x(), _map_group->y(), ms / 2);
+	resize_hidden_objects(_map_group->x(), _map_group->y(), ms / 2);
 	_map_scroll->contents(_map_group->w(), _map_group->h());
 
 	_map.modified(true);
@@ -2461,6 +2500,7 @@ void Main_Window::update_layout() {
 	int mx = _map_group->x(), my = _map_group->y();
 	_map.resize_blocks(mx, my, ms);
 	_map_events.resize_events(mx, my, ms / 2);
+	resize_hidden_objects(mx, my, ms / 2);
 }
 
 void Main_Window::update_labels() {
@@ -2606,6 +2646,7 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 	mw->_hotkey_metatiles.clear();
 	mw->_metatile_hotkeys.clear();
 	mw->_map_group->clear();
+	mw->_hidden_object_markers.clear(); // deleted with the other widgets of the map
 	mw->_map_group->size(0, 0);
 	mw->_map.clear();
 	mw->_map_events.clear();

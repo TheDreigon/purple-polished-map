@@ -21,6 +21,7 @@
 #include "metatileset.h"
 #include "map.h"
 #include "map-events.h"
+#include "hidden-objects.h"
 #include "gameboy-screen.h"
 #include "help-window.h"
 #include "block-window.h"
@@ -102,6 +103,7 @@ private:
 	Metatileset _metatileset;
 	Map _map;
 	Map_Events _map_events;
+	std::vector<Hidden_Object_Marker *> _hidden_object_markers;
 	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
 	// Metatile button properties
@@ -191,6 +193,8 @@ private:
 	void unload_events(void);
 	void view_event_script(Event *e);
 	void add_event_at(Block *b);
+	void load_hidden_objects(void);
+	void resize_hidden_objects(int x, int y, int s) const;
 	void load_palettes(const char *filename, const char *auto_option = NULL);
 	void load_roof_colors(bool quiet);
 	bool read_metatile_data(const char *tileset_name, const char *roof_name);
