@@ -45,7 +45,7 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>..\bin\$(Configuration)\</OutDir>
     <IntDir>..\tmp\$(Configuration)\</IntDir>
-    <TargetName>polishedmapd</TargetName>
+    <TargetName>purple-polished-map-debug</TargetName>
     <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
@@ -53,7 +53,7 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\bin\$(Configuration)\</OutDir>
     <IntDir>..\tmp\$(Configuration)\</IntDir>
-    <TargetName>polishedmap</TargetName>
+    <TargetName>purple-polished-map</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

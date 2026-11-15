@@ -12,7 +12,7 @@ rem   build-windows.bat         build FLTK if it is not built yet, then the prog
 rem   build-windows.bat fltk    download (if needed) and build only FLTK
 rem   build-windows.bat app     build only the program
 rem
-rem The result is bin\Release\polishedmap.exe (32-bit, like the official releases).
+rem The result is bin\Release\purple-polished-map.exe (32-bit, like the official releases).
 
 setlocal
 
@@ -82,7 +82,7 @@ if /i "%WHAT%"=="fltk" goto done
 echo === Building the program (Release, Win32) ===
 msbuild "%ROOT%\ide\polished-map.sln" /m /nologo /v:minimal /p:Configuration=Release /p:Platform=Win32 || goto failed
 echo.
-echo Built: %ROOT%\bin\Release\polishedmap.exe
+echo Built: %ROOT%\bin\Release\purple-polished-map.exe
 
 :done
 exit /b 0

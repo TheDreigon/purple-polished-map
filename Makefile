@@ -1,8 +1,8 @@
 DESTDIR =
 PREFIX = /usr/local
 
-polishedmap = polishedmap
-polishedmapd = polishedmapd
+polishedmap = purple-polished-map
+polishedmapd = purple-polished-map-debug
 
 CXX ?= g++
 LD = $(CXX)
@@ -28,7 +28,7 @@ OBJECTS = $(SOURCES:$(srcdir)/%.cpp=$(tmpdir)/%.o)
 DEBUGOBJECTS = $(SOURCES:$(srcdir)/%.cpp=$(debugdir)/%.o)
 TARGET = $(bindir)/$(polishedmap)
 DEBUGTARGET = $(bindir)/$(polishedmapd)
-DESKTOP = "$(DESTDIR)$(PREFIX)/share/applications/Polished Map.desktop"
+DESKTOP = "$(DESTDIR)$(PREFIX)/share/applications/Purple Polished Map.desktop"
 
 .PHONY: all $(polishedmap) $(polishedmapd) release debug clean install uninstall
 
@@ -68,19 +68,19 @@ install: release
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp $(TARGET) $(DESTDIR)$(PREFIX)/bin/$(polishedmap)
 	mkdir -p $(DESTDIR)$(PREFIX)/share/pixmaps
-	cp $(resdir)/app.xpm $(DESTDIR)$(PREFIX)/share/pixmaps/polishedmap48.xpm
-	cp $(resdir)/app-icon.xpm $(DESTDIR)$(PREFIX)/share/pixmaps/polishedmap16.xpm
+	cp $(resdir)/app.xpm $(DESTDIR)$(PREFIX)/share/pixmaps/purple-polished-map48.xpm
+	cp $(resdir)/app-icon.xpm $(DESTDIR)$(PREFIX)/share/pixmaps/purple-polished-map16.xpm
 	mkdir -p $(DESTDIR)$(PREFIX)/share/applications
 	echo "[Desktop Entry]" > $(DESKTOP)
-	echo "Name=Polished Map" >> $(DESKTOP)
+	echo "Name=Purple Polished Map" >> $(DESKTOP)
 	echo "Comment=Edit pokecrystal maps and tilesets" >> $(DESKTOP)
-	echo "Icon=$(PREFIX)/share/pixmaps/polishedmap48.xpm" >> $(DESKTOP)
+	echo "Icon=$(PREFIX)/share/pixmaps/purple-polished-map48.xpm" >> $(DESKTOP)
 	echo "Exec=$(PREFIX)/bin/$(polishedmap)" >> $(DESKTOP)
 	echo "Type=Application" >> $(DESKTOP)
 	echo "Terminal=false" >> $(DESKTOP)
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/$(polishedmap)
-	rm -f $(DESTDIR)$(PREFIX)/share/pixmaps/polishedmap48.xpm
-	rm -f $(DESTDIR)$(PREFIX)/share/pixmaps/polishedmap16.xpm
+	rm -f $(DESTDIR)$(PREFIX)/share/pixmaps/purple-polished-map48.xpm
+	rm -f $(DESTDIR)$(PREFIX)/share/pixmaps/purple-polished-map16.xpm
 	rm -f $(DESKTOP)

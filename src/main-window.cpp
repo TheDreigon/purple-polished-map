@@ -706,10 +706,16 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_print_options_dialog->warp_ids(Config::print_warp_ids());
 
 	std::string subject(PROGRAM_NAME " " PROGRAM_VERSION_STRING), message(
+		"An unofficial fork of " ORIGINAL_NAME " by " ORIGINAL_AUTHOR ".\n"
+		"\n"
+		"Copyright \xc2\xa9 " ORIGINAL_YEAR " " ORIGINAL_AUTHOR ".\n"
 		"Copyright \xc2\xa9 " CURRENT_YEAR " " PROGRAM_AUTHOR ".\n"
 		"\n"
 		"Source code is available at:\n"
-		"https://github.com/Rangi42/polished-map\n"
+		PROGRAM_SOURCE_URL "\n"
+		"\n"
+		"Original " ORIGINAL_NAME ":\n"
+		ORIGINAL_SOURCE_URL "\n"
 		"\n"
 		"Some icons by Yusuke Kamiyamane."
 	);
