@@ -2820,6 +2820,7 @@ void Main_Window::print_cb(Fl_Widget *, Main_Window *mw) {
 		Fl_Display_Device::display_device()->set_current();
 
 		Image::Result result = Image::write_rgb_image(filename, image);
+		delete image;
 		if (result != Image::Result::IMAGE_OK) {
 			std::string msg = "Could not print to ";
 			msg = msg + basename + "!\n\n" + Image::error_message(result);

@@ -20,7 +20,10 @@ Image::Result Image::write_rgb_image(const char *f, Fl_RGB_Image *image) {
 	uchar *buffer = (uchar *)image->data()[0];
 	int d = image->d(), ld = image->ld();
 	int pd = d > 1;
-	return write_image(f, w, h, buffer, false, pd, d, ld);
+	Result result = write_image(f, w, h, buffer, false, pd, d, ld);
+	// write_image() has freed the pixels, so the image must not free them again when deleted
+	image->alloc_array = 0;
+	return result;
 }
 
 Image::Result Image::write_tileset_image(const char *f, const Tileset &tileset, size_t off, size_t n) {
@@ -43,68 +46,88 @@ Image::Result Image::write_roof_image(const char *f, const Tileset &tileset) {
 	return write_image(f, w, h, buffer, true);
 }
 
+// Writes the pixels to the file as a PNG. Returns false if libpng reports an error,
+// for example when the disk is full or the drive was removed.
+static bool write_png(FILE *file, size_t w, size_t h, const uchar *buffer, bool is_2bpp, int pd, int d, int ld) {
+	// Create the necessary PNG structures
+	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png) { return false; }
+	png_infop info = png_create_info_struct(png);
+	if (!info) {
+		png_destroy_write_struct(&png, NULL);
+		return false;
+	}
+	size_t rs = is_2bpp ? w / 4 : w * NUM_CHANNELS;
+	png_bytep png_row = new png_byte[rs];
+	// libpng reports errors by jumping back here; without this it ends the whole program
+	if (setjmp(png_jmpbuf(png))) {
+		delete [] png_row;
+		png_destroy_write_struct(&png, &info);
+		return false;
+	}
+	png_init_io(png, file);
+	// Set compression options
+	png_set_compression_level(png, Z_BEST_COMPRESSION);
+	png_set_compression_mem_level(png, Z_BEST_COMPRESSION);
+	png_set_compression_strategy(png, Z_DEFAULT_STRATEGY);
+	png_set_compression_window_bits(png, 15);
+	png_set_compression_method(png, Z_DEFLATED);
+	png_set_compression_buffer_size(png, 8192);
+	// Write the PNG IHDR chunk
+	png_set_IHDR(png, info, (png_uint_32)w, (png_uint_32)h, is_2bpp ? 2 : 8,
+		is_2bpp ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB,
+		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+	// Write the other PNG header chunks
+	png_write_info(png, info);
+	// Write the RGB pixels in row-major order from top to bottom
+	if (is_2bpp) {
+		for (size_t i = 0; i < h; i++) {
+			for (size_t j = 0; j < rs; j++) {
+				uchar pp = 0;
+				for (size_t k = 0; k < 4; k++) {
+					size_t px = ld * i + d * (j * 4 + k);
+					uchar v = buffer[px] / (0x100 / 4); // [0, 255] -> [0, 3]
+					pp = (pp << 2) | v;
+				}
+				png_row[j] = pp;
+			}
+			png_write_row(png, png_row);
+		}
+	}
+	else {
+		for (size_t i = 0; i < h; i++) {
+			for (size_t j = 0; j < w; j++) {
+				size_t rd = NUM_CHANNELS * j;
+				size_t px = ld * i + d * j;
+				for (size_t k = 0; k < NUM_CHANNELS; k++) {
+					png_row[rd+k] = buffer[px+pd*k];
+				}
+			}
+			png_write_row(png, png_row);
+		}
+	}
+	png_write_end(png, NULL);
+	delete [] png_row;
+	png_destroy_write_struct(&png, &info);
+	return true;
+}
+
 Image::Result Image::write_image(const char *f, size_t w, size_t h, uchar *buffer, bool is_2bpp, int pd, int d, int ld) {
 	if (!ld) { ld = (int)w * d; }
 	Result result = Result::IMAGE_OK;
 	FILE *file = fl_fopen(f, "wb");
-	if (!file) { result = Result::IMAGE_BAD_FILE; goto cleanup1; }
-	{ // new scope avoids gcc "jump to label crosses initialization" error
-		// Create the necessary PNG structures
-		png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		if (!png) { result = Result::IMAGE_BAD_PNG; goto cleanup2; }
-		png_infop info = png_create_info_struct(png);
-		if (!info) { result = Result::IMAGE_BAD_PNG; goto cleanup2; }
-		png_init_io(png, file);
-		// Set compression options
-		png_set_compression_level(png, Z_BEST_COMPRESSION);
-		png_set_compression_mem_level(png, Z_BEST_COMPRESSION);
-		png_set_compression_strategy(png, Z_DEFAULT_STRATEGY);
-		png_set_compression_window_bits(png, 15);
-		png_set_compression_method(png, Z_DEFLATED);
-		png_set_compression_buffer_size(png, 8192);
-		// Write the PNG IHDR chunk
-		png_set_IHDR(png, info, (png_uint_32)w, (png_uint_32)h, is_2bpp ? 2 : 8,
-			is_2bpp ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB,
-			PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-		// Write the other PNG header chunks
-		png_write_info(png, info);
-		// Write the RGB pixels in row-major order from top to bottom
-		size_t rs = is_2bpp ? w / 4 : w * NUM_CHANNELS;
-		png_bytep png_row = new png_byte[rs];
-		if (is_2bpp) {
-			for (size_t i = 0; i < h; i++) {
-				for (size_t j = 0; j < rs; j++) {
-					uchar pp = 0;
-					for (size_t k = 0; k < 4; k++) {
-						size_t px = ld * i + d * (j * 4 + k);
-						uchar v = buffer[px] / (0x100 / 4); // [0, 255] -> [0, 3]
-						pp = (pp << 2) | v;
-					}
-					png_row[j] = pp;
-				}
-				png_write_row(png, png_row);
-			}
-		}
-		else {
-			for (size_t i = 0; i < h; i++) {
-				for (size_t j = 0; j < w; j++) {
-					size_t rd = NUM_CHANNELS * j;
-					size_t px = ld * i + d * j;
-					for (size_t k = 0; k < NUM_CHANNELS; k++) {
-						png_row[rd+k] = buffer[px+pd*k];
-					}
-				}
-				png_write_row(png, png_row);
-			}
-		}
-		png_write_end(png, NULL);
-		delete [] png_row;
-		png_destroy_write_struct(&png, &info);
-		png_free_data(png, info, PNG_FREE_ALL, -1);
+	if (!file) {
+		result = Result::IMAGE_BAD_FILE;
 	}
-cleanup2:
-	fclose(file);
-cleanup1:
+	else {
+		if (!write_png(file, w, h, buffer, is_2bpp, pd, d, ld)) {
+			result = Result::IMAGE_BAD_PNG;
+		}
+		// Data still waiting in the buffer can also fail to be written
+		if (fclose(file) && result == Result::IMAGE_OK) {
+			result = Result::IMAGE_BAD_FILE;
+		}
+	}
 	delete [] buffer;
 	return result;
 }
