@@ -31,6 +31,13 @@ If the pre-built release already works for you, you don't have to build it yours
 14. Go to **Build → Build Solution** or press F7 to build the project. This will create bin\Release\\**polishedmap.exe**.
 15. Hold down Shift, right-click **install.bat**, and click "**Run as administrator**". This will install Polished Map to your account and create a shortcut on your Desktop.
 
+### Build Polished Map from the command line
+
+If you only have the [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), or would rather not click through the IDE, **build-windows.bat** does steps 4 to 14 above for you. You need [Git](https://git-scm.com/) and the "Desktop development with C++" workload, including "C++ CMake tools for Windows".
+
+1. Open a Command Prompt in the folder that contains build-windows.bat.
+2. Run `build-windows.bat`. The first run downloads FLTK 1.4.5 to lib\fltk-1.4.5 and builds it (x86 Release, FLTK_GRAPHICS_GDIPLUS off, FLTK_ABI_VERSION 10405); later runs only rebuild the program. This will create bin\Release\\**polishedmap.exe**.
+
 
 ## Linux
 
