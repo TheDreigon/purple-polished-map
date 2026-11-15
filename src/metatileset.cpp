@@ -54,6 +54,9 @@ bool Metatileset::uses_tile(uint8_t id) const {
 }
 
 void Metatileset::trim_tileset() {
+	// Trimming treats a tile without a color as a free slot, so first make sure
+	// that no tile with graphics is in that state
+	_tileset.color_drawn_tiles();
 	for (uint8_t i = MAX_NUM_TILES - 1; i > 0; i--) {
 		Tile *t = _tileset.tile(i);
 		if (t->palette() != Palette::UNDEFINED && (!t->is_blank() || uses_tile(i))) {

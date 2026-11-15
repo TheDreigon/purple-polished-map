@@ -65,6 +65,7 @@ public:
 	void clear(void);
 	void clear_roof_graphics(void);
 	void update_palettes(Palettes l);
+	size_t color_drawn_tiles(void);
 	uchar *print_rgb(size_t w, size_t h, size_t off, size_t n) const;
 	uchar *print_roof_rgb(size_t w, size_t h) const;
 	inline Palette_Map::Result read_palette_map(const char *f) { return _palette_map.read_from(f); }

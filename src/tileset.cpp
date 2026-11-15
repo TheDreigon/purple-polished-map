@@ -52,6 +52,25 @@ void Tileset::update_palettes(Palettes l) {
 	}
 }
 
+// A tile that has graphics but no color was drawn in a free slot without choosing a color for it
+// (in monochrome mode there is none to choose). Saving leaves tiles without a color out of the
+// image, so such a tile gets the default color here. Returns how many tiles were changed.
+size_t Tileset::color_drawn_tiles() {
+	Palette p = Config::monochrome() ? Palette::MONOCHROME : Palette::GRAY;
+	size_t n = 0;
+	for (int i = 0; i < MAX_NUM_TILES; i++) {
+		Tile *t = _tiles[i];
+		if (t->palette() != Palette::UNDEFINED || t->is_blank()) { continue; }
+		t->palette(p);
+		t->update_palettes(_palettes);
+		_roof_tiles[i]->palette(p);
+		_roof_tiles[i]->update_palettes(_palettes);
+		_palette_map.palette((uint8_t)i, p);
+		n++;
+	}
+	return n;
+}
+
 uchar *Tileset::print_rgb(size_t w, size_t h, size_t off, size_t n) const {
 	uchar *buffer = new uchar[w * h * NUM_CHANNELS]();
 	std::fill_n(buffer, w * h * NUM_CHANNELS, (uchar)0xff);

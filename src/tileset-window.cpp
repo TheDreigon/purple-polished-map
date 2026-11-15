@@ -267,6 +267,8 @@ void Tileset_Window::apply_modifications() {
 			rt->update_palettes(_tileset->palettes());
 		}
 	}
+	// A tile drawn in a free slot has no color yet; give it one so it is shown and saved properly
+	_tileset->color_drawn_tiles();
 	_tileset->modified(true);
 }
 

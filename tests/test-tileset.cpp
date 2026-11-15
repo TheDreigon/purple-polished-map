@@ -27,11 +27,12 @@ static void load_tileset(Metatileset &metatileset, const Tileset_Files &files) {
 }
 
 // What the tileset editor does when its changes are accepted (Tileset_Window::apply_modifications):
-// the palette map takes the color of every tile
+// the palette map takes the color of every tile, and tiles drawn in free slots get a color
 static void accept_tileset_edits(Tileset &tileset) {
 	for (int i = 0; i < MAX_NUM_TILES; i++) {
 		tileset.palette_map().palette((uint8_t)i, tileset.tile((uint8_t)i)->palette());
 	}
+	tileset.color_drawn_tiles();
 	tileset.modified(true);
 }
 
@@ -180,6 +181,108 @@ TEST(tileset_saved_and_reopened_is_the_same_johto) {
 
 TEST(tileset_saved_and_reopened_is_the_same_kanto) {
 	check_saved_and_reopened("kanto");
+}
+
+// What drawing one pixel in the tileset editor does to a tile: the pixel takes the hue,
+// shown in the colors of whatever color the tile has (which may be none)
+static void draw_pixel(Tileset &tileset, uint8_t id, int x, int y, Hue hue) {
+	Tile *t = tileset.tile(id);
+	const uchar *rgb = Color::color(tileset.palettes(), t->palette(), hue);
+	t->pixel(x, y, hue, rgb[0], rgb[1], rgb[2]);
+}
+
+static void erase_tile(Tileset &tileset, uint8_t id) {
+	for (int y = 0; y < TILE_SIZE; y++) {
+		for (int x = 0; x < TILE_SIZE; x++) {
+			draw_pixel(tileset, id, x, y, Hue::WHITE);
+		}
+	}
+}
+
+// A monochrome tileset (no palette map, as in pokered and pokeyellow) that has been saved once,
+// with its last eight tiles blank and not used by any block. Saving leaves those out of the image
+// and marks them as free: they no longer have a color.
+static Tileset_Files monochrome_tileset_with_free_tiles(Metatileset &metatileset) {
+	std::string dir = test::temp_dir();
+	Tileset_Files files = example_tileset("kanto");
+	files.palette_map = test::join(dir, "no_palette_map.asm");
+	load_tileset(metatileset, files);
+	REQUIRE(Config::monochrome());
+
+	metatileset.size(1);
+	Tileset &tileset = metatileset.tileset();
+	for (int i = 0x58; i < 0x60; i++) {
+		erase_tile(tileset, (uint8_t)i);
+		REQUIRE(!metatileset.uses_tile((uint8_t)i));
+	}
+	accept_tileset_edits(tileset);
+
+	files.graphics = test::join(dir, "kanto.png");
+	save_tileset(metatileset, files);
+	REQUIRE(tileset.const_tile(0x5c)->palette() == Palette::UNDEFINED);
+	return files;
+}
+
+TEST(tileset_keeps_a_tile_drawn_in_a_free_slot) {
+	// The bug: in monochrome mode, a tile drawn in one of the free slots at the end of a tileset
+	// that had already been saved was left out of the next save, which still said "Saved!".
+	// The tile had no color, there is no way to give it one in monochrome mode, and saving
+	// treated a tile without a color as an empty slot.
+	Metatileset metatileset;
+	Tileset_Files files = monochrome_tileset_with_free_tiles(metatileset);
+	Tileset &tileset = metatileset.tileset();
+
+	// Saving has to cope with such a tile by itself, so this does not go through
+	// accept_tileset_edits(), which would already give the tile a color
+	draw_pixel(tileset, 0x5c, 3, 4, Hue::BLACK);
+	for (int i = 0; i < MAX_NUM_TILES; i++) {
+		tileset.palette_map().palette((uint8_t)i, tileset.tile((uint8_t)i)->palette());
+	}
+	tileset.modified(true);
+	save_tileset(metatileset, files);
+
+	Metatileset reopened;
+	load_tileset(reopened, files);
+	CHECK(reopened.tileset().const_tile(0x5c)->hue(3, 4) == Hue::BLACK);
+	CHECK(!reopened.tileset().const_tile(0x5c)->is_blank());
+	// The free slots after it are still left out
+	CHECK(reopened.tileset().const_tile(0x5d)->is_blank());
+}
+
+TEST(tileset_gives_a_color_to_a_tile_drawn_without_one) {
+	Metatileset metatileset;
+	monochrome_tileset_with_free_tiles(metatileset);
+	Tileset &tileset = metatileset.tileset();
+
+	// Nothing to do while the free slots are blank
+	CHECK_EQ(tileset.color_drawn_tiles(), (size_t)0);
+	CHECK(tileset.const_tile(0x5c)->palette() == Palette::UNDEFINED);
+
+	draw_pixel(tileset, 0x5c, 3, 4, Hue::BLACK);
+	CHECK_EQ(tileset.color_drawn_tiles(), (size_t)1);
+	CHECK(tileset.const_tile(0x5c)->palette() == Palette::MONOCHROME);
+	CHECK(tileset.const_tile(0x5c)->hue(3, 4) == Hue::BLACK);
+	// The blank slots next to it stay free
+	CHECK(tileset.const_tile(0x5b)->palette() == Palette::UNDEFINED);
+	CHECK(tileset.const_tile(0x5d)->palette() == Palette::UNDEFINED);
+
+	// The tile is now shown in the monochrome colors, not in those of a free slot
+	const uchar *expected = Color::color(tileset.palettes(), Palette::MONOCHROME, Hue::BLACK);
+	const uchar *shown = tileset.const_tile(0x5c)->const_pixel(3, 4);
+	CHECK(shown[0] == expected[0] && shown[1] == expected[1] && shown[2] == expected[2]);
+}
+
+TEST(tileset_gives_gray_to_a_tile_drawn_without_a_color_in_a_color_project) {
+	Metatileset metatileset;
+	load_tileset(metatileset, example_tileset("kanto"));
+	Tileset &tileset = metatileset.tileset();
+	REQUIRE(!Config::monochrome());
+	// Tile $60 is outside what a project without the "256 tiles" option uses, so it has no color
+	REQUIRE(tileset.const_tile(0x60)->palette() == Palette::UNDEFINED);
+
+	draw_pixel(tileset, 0x60, 0, 0, Hue::DARK);
+	CHECK_EQ(tileset.color_drawn_tiles(), (size_t)1);
+	CHECK(tileset.const_tile(0x60)->palette() == Palette::GRAY);
 }
 
 static uint32_t big_endian_32(const std::string &bytes, size_t at) {
