@@ -19,7 +19,24 @@ All credit for Polished Map goes to Rangi and its contributors. The license ([LG
 - **View > Show Connections** shows the edges of the connected maps in the margin around the map, read-only.
 - It has [automated tests](tests/README.md) for the code that reads and writes maps, blocksets, tilesets and events.
 
-More fixes are on the way. Each one is a separate commit that explains what it changes.
+### Bugs fixed
+
+Unless noted, all of these are also in Polished Map 4.7.1. Each fix is a separate commit that explains it.
+
+- Undo or Redo after a save was not saved, although the program said "Saved!".
+- After Resize Map, the next save always claimed the map "was modified by another program", and canceling there saved the moved events without the resized map. Resizing also forgot the map's palette and environment.
+- Canceling a second "unsaved changes" prompt while opening a map left the old map open under the new one, and a later save mixed both into the new map's files.
+- A tile drawn in a free slot at the end of a tileset was left out of the next save (always, in monochrome mode).
+- Save As kept the old map's events attached, so later saves wrote them to the old map's file.
+- If Change Tileset could not load the new tileset, the map was closed and its unsaved changes lost.
+- Leaving Edit Tileset, Edit Roof or Edit Block with OK, without changing anything, still marked the files as changed and made Save rewrite them.
+- Clicking an event rewrote its line in the .asm file, turning constants and expressions in its coordinates into plain numbers.
+- Opening a map with a tileset that shares another one's graphics (in pokered: Mart, Red's house, Dojo, gates, Museum) preselected the wrong tileset.
+- An events file with a line holding only the word "warp" crashed the program, and so did a failed PNG write (for example, a full disk).
+- File > New cut project folders whose names have accented letters, and a map path written with "/" was rejected on Windows.
+- Export Palettes mislabeled three of the six palette sets, and the "after" part of a split tileset was always reported as changed by another program.
+- With two monitors, menus could open on the wrong one after moving the window (this one came with FLTK 1.4).
+- At display scales like 150%, toolbar icons looked jagged (this also came with FLTK 1.4); they are now smoothed, as Polished Map 4.7.1 showed them.
 
 There are no downloadable builds yet. Follow the steps in [INSTALL.md](INSTALL.md) to build it from source.
 
