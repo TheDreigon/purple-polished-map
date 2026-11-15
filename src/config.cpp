@@ -165,6 +165,9 @@ static void _metatileset_path(char *dest, const char *root, const char *tileset)
 	// try gfx/blocksets/*.bst (pokered)
 	sprintf(dest, "%sgfx" DIR_SEP "blocksets" DIR_SEP "%s.bst", root, tileset);
 	if (file_exists(dest)) { return; }
+	// try gfx/tilesets/*_blocks.bin (pokered and pokecrystal after pret's planned rename, pret/pokered#498)
+	sprintf(dest, "%sgfx" DIR_SEP "tilesets" DIR_SEP "%s_blocks.bin", root, tileset);
+	if (file_exists(dest)) { return; }
 	// try MAPDATA/*.CEL (source)
 	sprintf(dest, "%sMAPDATA" DIR_SEP "%s.CEL", root, tileset);
 	if (file_exists(dest)) { return; }
@@ -188,6 +191,9 @@ static bool _collisions_path(char *dest, const char *root, const char *tileset) 
 	if (file_exists(dest)) { return false; }
 	// try data/tilesets/*_collision.inc (SECTION-split pokecrystal)
 	sprintf(dest, "%sdata" DIR_SEP "tilesets" DIR_SEP "%s_collision.inc", root, tileset);
+	if (file_exists(dest)) { return false; }
+	// try gfx/tilesets/*_collision.asm (pokecrystal after pret's planned rename)
+	sprintf(dest, "%sgfx" DIR_SEP "tilesets" DIR_SEP "%s_collision.asm", root, tileset);
 	if (file_exists(dest)) { return false; }
 	// try data/tilesets/*_collision.bin (pokegold-spaceworld)
 	sprintf(dest, "%sdata" DIR_SEP "tilesets" DIR_SEP "%s_collision.bin", root, tileset);

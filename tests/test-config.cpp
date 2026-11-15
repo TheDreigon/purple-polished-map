@@ -90,6 +90,27 @@ TEST(config_finds_pokered_files) {
 	CHECK(!Config::map_headers_path(path, project.c_str()));
 }
 
+TEST(config_finds_files_in_pret_planned_layout) {
+	// pret plans to move blocksets and collisions next to the tileset graphics
+	// (pret/pokered issue 498, upstream Polished Map issue 91)
+	std::string project = make_project({
+		"gfx/tilesets/overworld.png",
+		"gfx/tilesets/overworld_blocks.bin",
+		"gfx/tilesets/johto_modern.png",
+		"gfx/tilesets/johto_modern_blocks.bin",
+		"gfx/tilesets/johto_modern_collision.asm",
+		"gfx/tilesets/johto_modern_palette_map.asm",
+	});
+	char path[FL_PATH_MAX] = {};
+
+	Config::metatileset_path(path, project.c_str(), "overworld");
+	CHECK_EQ(path, test::join(project, "gfx/tilesets/overworld_blocks.bin"));
+	Config::metatileset_path(path, project.c_str(), "johto_modern");
+	CHECK_EQ(path, test::join(project, "gfx/tilesets/johto_modern_blocks.bin"));
+	CHECK(!Config::collisions_path(path, project.c_str(), "johto_modern"));
+	CHECK_EQ(path, test::join(project, "gfx/tilesets/johto_modern_collision.asm"));
+}
+
 TEST(config_finds_pokecrystal_map_files) {
 	std::string project = make_project({
 		"maps/NewBarkTown.asm",
