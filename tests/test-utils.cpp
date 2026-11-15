@@ -119,6 +119,20 @@ TEST(utils_compares_paths) {
 #endif
 }
 
+TEST(utils_reads_the_path_of_a_dropped_file) {
+	// Windows sends the path itself
+	CHECK_EQ(dropped_file_path("D:\\Project\\maps\\Route1.blk"), "D:\\Project\\maps\\Route1.blk");
+	// Linux desktops send file:// URIs, one per line, with special characters as %XX;
+	// they used to be taken as the path itself and the map could not be opened
+	CHECK_EQ(dropped_file_path("file:///home/me/pokered/maps/Route1.blk\r\nfile:///home/me/x.blk\r\n"),
+		"/home/me/pokered/maps/Route1.blk");
+	CHECK_EQ(dropped_file_path("file:///home/me/Pok%C3%A9mon%20Hacks/maps/Route%201.blk"),
+		"/home/me/Pok\xc3\xa9mon Hacks/maps/Route 1.blk");
+	CHECK_EQ(dropped_file_path("file://localhost/home/me/maps/Route1.blk"), "/home/me/maps/Route1.blk");
+	// A lone or broken % is kept as it is
+	CHECK_EQ(dropped_file_path("file:///home/me/100%/a%2"), "/home/me/100%/a%2");
+}
+
 TEST(utils_reports_files) {
 	std::string dir = test::temp_dir();
 	std::string there = test::join(dir, "there.bin"), missing = test::join(dir, "missing.bin");

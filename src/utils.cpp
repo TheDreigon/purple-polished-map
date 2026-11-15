@@ -111,6 +111,28 @@ bool file_exists(const char *f) {
 	return !fl_access(f, 4); // R_OK
 }
 
+// The path of the first file in text dropped on the window. Linux desktops send a list of
+// "file://" URIs, one per line, with special characters written as %XX.
+std::string dropped_file_path(const std::string &text) {
+	std::string path = text.substr(0, text.find('\n'));
+	if (!path.empty() && path.back() == '\r') { path.pop_back(); }
+	if (!starts_with(path, "file://")) { return path; }
+	path.erase(0, strlen("file://"));
+	// "file://host/path": only the local host is meaningful
+	if (starts_with(path, "localhost/")) { path.erase(0, strlen("localhost")); }
+	std::string decoded;
+	for (size_t i = 0; i < path.size(); i++) {
+		if (path[i] == '%' && i + 2 < path.size() && isxdigit((unsigned char)path[i+1]) && isxdigit((unsigned char)path[i+2])) {
+			decoded += (char)strtol(path.substr(i + 1, 2).c_str(), NULL, 16);
+			i += 2;
+		}
+		else {
+			decoded += path[i];
+		}
+	}
+	return decoded;
+}
+
 // Whether two paths, written the way this program builds them, name the same file
 bool same_path(const char *a, const char *b) {
 #ifdef _WIN32

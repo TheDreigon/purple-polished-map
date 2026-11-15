@@ -2397,7 +2397,7 @@ void Main_Window::drag_and_drop_cb(DnD_Receiver *dndr, Main_Window *mw) {
 		mw->_unsaved_dialog->show(mw);
 		if (mw->_unsaved_dialog->canceled()) { return; }
 	}
-	std::string filename = dndr->text().substr(0, dndr->text().find('\n'));
+	std::string filename = dropped_file_path(dndr->text());
 	mw->open_map(filename.c_str());
 }
 
