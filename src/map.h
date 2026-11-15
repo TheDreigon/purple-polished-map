@@ -64,6 +64,7 @@ public:
 		return _height <= (uint8_t)((MAX_EVENT_COORD - EVENT_MARGIN + 1) / 2) ? (int16_t)_height * 2 + EVENT_MARGIN - 1 : MAX_EVENT_COORD;
 	}
 	void size(uint8_t w, uint8_t h);
+	void resize(uint8_t w, uint8_t h);
 	inline size_t size(void) const { return (size_t)_width * (size_t)_height; }
 	inline Block *block(uint8_t x, uint8_t y) const { return _blocks[(size_t)y * _width + (size_t)x]; }
 	inline Block *block(size_t i) const { return _blocks[i]; }

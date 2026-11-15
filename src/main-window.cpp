@@ -1855,7 +1855,7 @@ void Main_Window::resize_map(int w, int h) {
 
 	int ms = metatile_size();
 	_map_group->size(ms * ((int)w + EVENT_MARGIN), ms * ((int)h + EVENT_MARGIN));
-	_map.size((uint8_t)w, (uint8_t)h);
+	_map.resize((uint8_t)w, (uint8_t)h);
 	int i = 0;
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {

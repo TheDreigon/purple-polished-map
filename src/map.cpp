@@ -24,6 +24,20 @@ void Map::size(uint8_t w, uint8_t h) {
 	_blocks = new Block *[size()]();
 }
 
+// Changes the dimensions of a loaded map; the caller then places the blocks.
+// Unlike size(), which starts a map from scratch, this keeps what is known about
+// the map and its file: its attributes, its result and when its file was last read.
+void Map::resize(uint8_t w, uint8_t h) {
+	delete [] _blocks;
+	_width = w;
+	_height = h;
+	_blocks = new Block *[size()]();
+	// The remembered edits are for the old dimensions
+	_history.clear();
+	_future.clear();
+	_modified = true;
+}
+
 void Map::block(uint8_t x, uint8_t y, Block *b) {
 	_blocks[(size_t)y * _width + (size_t)x] = b;
 }

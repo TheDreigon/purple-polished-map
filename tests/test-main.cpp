@@ -5,6 +5,7 @@
 // filter      run only the tests whose name contains one of the given words
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -117,6 +118,11 @@ void make_dirs(const std::string &path) {
 
 bool exists(const std::string &path) {
 	return fs::exists(path);
+}
+
+void make_newer(const std::string &path) {
+	// File times are compared in whole seconds, so move the time well ahead
+	fs::last_write_time(path, fs::last_write_time(path) + std::chrono::seconds(10));
 }
 
 // The program keeps some settings in global variables; every test starts from the defaults

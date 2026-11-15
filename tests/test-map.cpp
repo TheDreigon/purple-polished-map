@@ -193,6 +193,87 @@ TEST(map_stays_unmodified_when_there_is_nothing_to_undo) {
 	CHECK(!map.modified());
 }
 
+TEST(map_notices_a_change_by_another_program) {
+	Map map;
+	std::string f = load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+	CHECK(!map.other_modified(f.c_str()));
+
+	test::make_newer(f);
+	CHECK(map.other_modified(f.c_str()));
+}
+
+// What the main window does on Edit > Resize Map with the top left corner anchored:
+// the blocks that still fit are kept and the new places get block 0
+static void resize_like_the_window(Map &map, uint8_t w, uint8_t h) {
+	uint8_t old_w = map.width(), old_h = map.height();
+	std::vector<Block *> old;
+	for (size_t i = 0; i < map.size(); i++) {
+		old.push_back(map.block(i));
+	}
+	map.resize(w, h);
+	for (uint8_t y = 0; y < h; y++) {
+		for (uint8_t x = 0; x < w; x++) {
+			Block *b = (x < old_w && y < old_h) ? old[(size_t)y * old_w + x] : new Block();
+			b->coords(y, x);
+			map.block(x, y, b);
+		}
+	}
+	map.modified(true);
+}
+
+TEST(map_resized_is_still_the_same_file) {
+	// The bug: after Resize Map, the first Save always asked "... was modified by another program!
+	// Save the map and overwrite it anyway?", although nothing else had touched the file
+	Map map;
+	std::string f = load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+
+	resize_like_the_window(map, 3, 2);
+	CHECK_EQ(map.width(), 3);
+	CHECK_EQ(map.height(), 2);
+	CHECK(map.modified());
+	CHECK(map.result() == Map::Result::MAP_OK);
+	CHECK(!map.other_modified(f.c_str()));
+
+	// A real change by another program is still noticed
+	test::make_newer(f);
+	CHECK(map.other_modified(f.c_str()));
+
+	CHECK(map.write_blocks(f.c_str()));
+	CHECK_EQ(test::read_file(f), std::string("\x01\x02\x00\x03\x04\x00", 6));
+}
+
+TEST(map_resized_keeps_its_attributes) {
+	// Resizing also used to forget the map's group, environment, landmark and palette,
+	// which decide the colors a pokecrystal map is shown with
+	Map map;
+	load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+	Map_Attributes attributes;
+	attributes.group = 24;
+	attributes.environment = "TOWN";
+	attributes.landmark = "NEW_BARK_TOWN";
+	attributes.palette = "PALETTE_AUTO";
+	map.attributes(attributes);
+
+	resize_like_the_window(map, 2, 3);
+	CHECK_EQ(map.group(), 24);
+	CHECK_EQ(map.environment(), "TOWN");
+	CHECK_EQ(map.landmark(), "NEW_BARK_TOWN");
+	CHECK_EQ(map.palette(), "PALETTE_AUTO");
+	CHECK(map.is_outside());
+}
+
+TEST(map_resized_cannot_undo_to_the_old_size) {
+	Map map;
+	load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+	map.remember();
+	map.block((size_t)0)->id(9);
+
+	// The remembered edits are for a map of another size, so they are dropped
+	resize_like_the_window(map, 3, 3);
+	CHECK(!map.can_undo());
+	CHECK(!map.can_redo());
+}
+
 TEST(map_clear_forgets_everything) {
 	Map map;
 	load_small_map(map, 2, 2, "\x01\x02\x03\x04");

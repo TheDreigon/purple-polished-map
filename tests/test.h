@@ -76,6 +76,9 @@ void copy_file(const std::string &from, const std::string &to);
 void make_dirs(const std::string &path);
 bool exists(const std::string &path);
 
+// Makes a file look as if another program had changed it after it was loaded
+void make_newer(const std::string &path);
+
 }
 
 #define TEST(name) \
