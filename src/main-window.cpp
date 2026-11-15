@@ -3639,10 +3639,13 @@ void Main_Window::change_event_cb(Event *e, Main_Window *mw) {
 			int ry = (oy - sy) / e->h() - (oy < sy);
 			int16_t ex = std::clamp((int16_t)rx, MIN_EVENT_COORD, mw->_map.max_event_x());
 			int16_t ey = std::clamp((int16_t)ry, MIN_EVENT_COORD, mw->_map.max_event_y());
-			e->coords(ex, ey);
-			e->reposition(sx, sy);
-			mw->_map_events.modified(true);
-			mw->redraw_map();
+			// A drag that stays on the same square changes nothing
+			if (ex != e->event_x() || ey != e->event_y()) {
+				e->coords(ex, ey);
+				e->reposition(sx, sy);
+				mw->_map_events.modified(true);
+				mw->redraw_map();
+			}
 		}
 		else if (Fl::event_shift()) {
 			// Shift+click to open a warp's map

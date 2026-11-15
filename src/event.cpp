@@ -163,7 +163,7 @@ static const uchar warp_digits_png_buffer[] = {
 static Fl_PNG_Image warp_digits_image(NULL, warp_digits_png_buffer, sizeof(warp_digits_png_buffer));
 
 Event::Event(size_t line, const std::string &prelude, const std::string &macro, Event_Meta meta, const std::string &tip_, int warp_id) :
-	Fl_Box(0, 0, 0, 0), _line(line), _meta(meta), _event_x(0), _event_y(0), _prelude(prelude), _macro(macro), _prefix(),
+	Fl_Box(0, 0, 0, 0), _line(line), _meta(meta), _event_x(0), _event_y(0), _press_x(0), _press_y(0), _prelude(prelude), _macro(macro), _prefix(),
 	_suffix(), _tip(tip_), _warp_id(warp_id), _warp_to(NULL), _prefixed(false), _suffixed(false), _hex_coords(false) {
 	user_data(NULL);
 	box(OS_NO_BOX);
@@ -380,6 +380,8 @@ int Event::handle(int event) {
 	case FL_MOVE:
 		return 1;
 	case FL_PUSH:
+		_press_x = _event_x;
+		_press_y = _event_y;
 		return 1;
 	case FL_RELEASE:
 		if (Fl::event_shift()) {
@@ -387,7 +389,10 @@ int Event::handle(int event) {
 		}
 		else {
 			do_callback();
-			update_tooltip();
+			// Rewrite the event's line only if it was moved; a click alone must leave it as written
+			if (_event_x != _press_x || _event_y != _press_y) {
+				update_tooltip();
+			}
 			mw->update_event_cursor(this);
 			mw->update_gameboy_screen(this);
 		}

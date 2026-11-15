@@ -34,6 +34,7 @@ private:
 	size_t _line;
 	Event_Meta _meta;
 	int16_t _event_x, _event_y;
+	int16_t _press_x, _press_y; // where the event was when the mouse button was pressed
 	std::string _prelude, _macro, _prefix, _suffix, _tip;
 	int _warp_id;
 	Event *_warp_to;
