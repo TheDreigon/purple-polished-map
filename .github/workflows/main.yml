@@ -4,6 +4,7 @@ on:
   push:
     branches: [ purple ]
   pull_request:
+  workflow_dispatch: # adds a "Run workflow" button to the Actions tab
 
 jobs:
   build:
