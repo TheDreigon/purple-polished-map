@@ -238,6 +238,16 @@ bool Map_Options_Dialog::guess_map_size(const char *filename, const char *direct
 	return false;
 }
 
+// The name of the graphics file of a tileset constant, if the project says it has another name
+static std::string tileset_file_name(const std::string &tileset_name, const char *directory) {
+	char file_name[FL_PATH_MAX] = {};
+	if (!tileset_name.empty() && !isdigit((unsigned char)tileset_name[0]) &&
+		Config::tileset_file_name(file_name, directory, tileset_name.c_str())) {
+		return file_name;
+	}
+	return tileset_name;
+}
+
 std::string Map_Options_Dialog::guess_map_tileset(const char *filename, const char *directory, Map_Attributes &attrs) {
 	if (!filename) { return ""; }
 
@@ -319,7 +329,7 @@ std::string Map_Options_Dialog::guess_map_tileset(const char *filename, const ch
 			std::getline(lss, attrs.palette, ',');
 			trim(attrs.palette);
 
-			return tileset_name;
+			return tileset_file_name(tileset_name, directory);
 		}
 	}
 	else {
@@ -349,13 +359,13 @@ std::string Map_Options_Dialog::guess_map_tileset(const char *filename, const ch
 				std::getline(lss, tileset_name, ',');
 				trim(tileset_name);
 				lowercase(tileset_name);
-				return tileset_name;
+				return tileset_file_name(tileset_name, directory);
 			}
 			else if (macro == "db") {
 				std::string tileset_name;
 				lss >> tileset_name;
 				lowercase(tileset_name);
-				return tileset_name;
+				return tileset_file_name(tileset_name, directory);
 			}
 		}
 	}

@@ -23,6 +23,7 @@ public:
 	static bool collisions_path(char *dest, const char *root, const char *tileset);
 	static void map_constants_path(char *dest, const char *root);
 	static void tileset_constants_path(char *dest, const char *root);
+	static bool tileset_file_name(char *dest, const char *root, const char *tileset);
 	static bool map_headers_path(char *dest, const char *root);
 	static void map_header_path(char *dest, const char *root, const char *map_name);
 	static void event_script_path(char *dest, const char *root, const char *map_name);

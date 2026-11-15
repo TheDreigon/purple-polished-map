@@ -118,6 +118,71 @@ TEST(config_prefers_png_graphics_and_asm_collisions) {
 	CHECK_EQ(path, test::join(project, "data/tilesets/forest_collision.bin"));
 }
 
+TEST(config_finds_the_graphics_of_a_tileset_with_another_name) {
+	// In pokered and pokeyellow, MART uses pokecenter's graphics, REDS_HOUSE_1 and REDS_HOUSE_2
+	// use reds_house's, and so on. Opening a map with such a tileset used to preselect the first
+	// tileset in the list instead.
+	std::string project = make_project({});
+	test::write_file(test::join(project, "gfx/tilesets.asm"),
+		"SECTION \"Tilesets 1\", ROMX\n"
+		"\n"
+		"Overworld_GFX::     INCBIN \"gfx/tilesets/overworld.2bpp\"\n"
+		"\tds 32\n"
+		"Overworld_Block::   INCBIN \"gfx/blocksets/overworld.bst\"\n"
+		"\n"
+		"RedsHouse1_GFX::\n"
+		"RedsHouse2_GFX::    INCBIN \"gfx/tilesets/reds_house.2bpp\"\n"
+		"RedsHouse1_Block::\n"
+		"RedsHouse2_Block::  INCBIN \"gfx/blocksets/reds_house.bst\"\n"
+		"\n"
+		"Mart_GFX::\n"
+		"Pokecenter_GFX::    INCBIN \"gfx/tilesets/pokecenter.2bpp\"\n"
+		"Mart_Block::\n"
+		"Pokecenter_Block::  INCBIN \"gfx/blocksets/pokecenter.bst\"\n"
+		"\n"
+		"ForestGate_GFX::\n"
+		"Museum_GFX::\n"
+		"Gate_GFX::          INCBIN \"gfx/tilesets/gate.2bpp\" ; three names for one file\n"
+		"ForestGate_Block::\n"
+		"Museum_Block::\n"
+		"Gate_Block::        INCBIN \"gfx/blocksets/gate.bst\"\n");
+	char name[FL_PATH_MAX] = {};
+
+	CHECK(Config::tileset_file_name(name, project.c_str(), "reds_house_1"));
+	CHECK_EQ(name, "reds_house");
+	CHECK(Config::tileset_file_name(name, project.c_str(), "reds_house_2"));
+	CHECK_EQ(name, "reds_house");
+	CHECK(Config::tileset_file_name(name, project.c_str(), "mart"));
+	CHECK_EQ(name, "pokecenter");
+	CHECK(Config::tileset_file_name(name, project.c_str(), "forest_gate"));
+	CHECK_EQ(name, "gate");
+	CHECK(Config::tileset_file_name(name, project.c_str(), "museum"));
+	CHECK_EQ(name, "gate");
+	CHECK(Config::tileset_file_name(name, project.c_str(), "overworld"));
+	CHECK_EQ(name, "overworld");
+	// A blockset is not graphics, and an unknown tileset has no answer
+	CHECK(!Config::tileset_file_name(name, project.c_str(), "nothing"));
+}
+
+TEST(config_finds_the_graphics_of_a_pokecrystal_style_tileset) {
+	std::string project = make_project({});
+	test::write_file(test::join(project, "gfx/tilesets.asm"),
+		"TilesetJohtoModernGFX::\n"
+		"INCBIN \"gfx/tilesets/johto_modern.2bpp.lz\"\n"
+		"TilesetJohtoModernMeta::\n"
+		"INCBIN \"data/tilesets/johto_modern_metatiles.bin\"\n");
+	char name[FL_PATH_MAX] = {};
+
+	CHECK(Config::tileset_file_name(name, project.c_str(), "johto_modern"));
+	CHECK_EQ(name, "johto_modern");
+}
+
+TEST(config_has_no_tileset_names_without_gfx_tilesets_asm) {
+	std::string project = make_project({});
+	char name[FL_PATH_MAX] = {};
+	CHECK(!Config::tileset_file_name(name, project.c_str(), "mart"));
+}
+
 TEST(config_finds_the_events_of_a_map_file) {
 	std::string project = make_project({
 		"maps/NewBarkTown.blk",

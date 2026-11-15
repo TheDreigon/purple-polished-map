@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 
 #pragma warning(push, 0)
 #include <FL/filename.H>
@@ -256,6 +257,71 @@ void Config::map_events_path(char *dest, const char *root, const char *blk_path)
 		strcpy(dest, blk_path);
 		fl_filename_setext(dest, FL_PATH_MAX, ".asm");
 	}
+}
+
+// "RedsHouse1_GFX" or "TilesetJohtoModernGFX" -> "redshouse1" or "johtomodern";
+// "REDS_HOUSE_1" or "johto_modern" -> "redshouse1" or "johtomodern"
+static std::string comparable_tileset_name(std::string s, bool is_label) {
+	if (is_label) {
+		if (ends_with(s, "_GFX")) { s.erase(s.size() - 4); }
+		else if (ends_with(s, "GFX")) { s.erase(s.size() - 3); }
+		if (starts_with(s, "Tileset")) { s.erase(0, 7); }
+	}
+	s.erase(std::remove(RANGE(s), '_'), s.end());
+	lowercase(s);
+	return s;
+}
+
+// Several tileset constants can share the same graphics under another name: in pokered,
+// MART uses gfx/tilesets/pokecenter.png and REDS_HOUSE_1 uses reds_house.png. The project's
+// gfx/tilesets.asm says which, with lines like:
+//     RedsHouse1_GFX::
+//     RedsHouse2_GFX::    INCBIN "gfx/tilesets/reds_house.2bpp"
+// Gives the name of the graphics file (without its folder and extension) for a tileset constant
+// written in lowercase, like "reds_house_1", or returns false if gfx/tilesets.asm does not say.
+bool Config::tileset_file_name(char *dest, const char *root, const char *tileset) {
+	char tilesets_asm[FL_PATH_MAX] = {};
+	sprintf(tilesets_asm, "%sgfx" DIR_SEP "tilesets.asm", root);
+	std::ifstream ifs;
+	open_ifstream(ifs, tilesets_asm);
+	if (!ifs.good()) { return false; }
+
+	std::string wanted = comparable_tileset_name(tileset, false);
+	bool pending_match = false;
+	while (ifs.good()) {
+		std::string line;
+		std::getline(ifs, line);
+		remove_comment(line);
+		// A label starts the line and ends with one or two colons
+		if (!line.empty() && line[0] != ' ' && line[0] != '\t') {
+			size_t colon = line.find(':');
+			if (colon != std::string::npos) {
+				std::string label = line.substr(0, colon);
+				trim(label);
+				if (ends_with(label, "GFX")) {
+					if (comparable_tileset_name(label, true) == wanted) { pending_match = true; }
+				}
+				else {
+					pending_match = false; // the labels before an INCBIN of graphics are over
+				}
+			}
+		}
+		size_t incbin = line.find("INCBIN");
+		if (incbin == std::string::npos) { continue; }
+		size_t open = line.find('"', incbin), close = open == std::string::npos ? open : line.find('"', open + 1);
+		if (close == std::string::npos) { pending_match = false; continue; }
+		if (pending_match) {
+			std::string path = line.substr(open + 1, close - open - 1);
+			size_t slash = path.find_last_of("/\\");
+			std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+			size_t dot = name.find('.');
+			if (dot != std::string::npos) { name.erase(dot); }
+			if (name.empty() || name.size() >= FL_PATH_MAX) { return false; }
+			strcpy(dest, name.c_str());
+			return true;
+		}
+	}
+	return false;
 }
 
 void Config::tileset_constants_path(char *dest, const char *root) {
