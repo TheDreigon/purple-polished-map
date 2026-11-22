@@ -77,6 +77,7 @@ private:
 		*_save_as_mi = NULL, *_save_map_mi = NULL, *_save_blockset_mi = NULL, *_save_tileset_mi = NULL,
 		*_save_roof_mi = NULL, *_save_event_script_mi = NULL, *_print_mi = NULL;
 	Fl_Menu_Item *_undo_mi = NULL, *_redo_mi = NULL, *_copy_block_mi = NULL, *_paste_block_mi = NULL, *_swap_block_mi = NULL;
+	Fl_Menu_Item *_insert_row_mi = NULL, *_delete_row_mi = NULL, *_insert_column_mi = NULL, *_delete_column_mi = NULL;
 	Fl_Menu_Item *_resize_blockset_mi = NULL, *_resize_map_mi = NULL, *_change_tileset_mi = NULL, *_change_roof_mi = NULL,
 		*_edit_tileset_mi = NULL, *_edit_roof_mi = NULL;
 	// Dialogs
@@ -109,6 +110,7 @@ private:
 	std::vector<bool> _passable_tiles; // empty when the project does not say
 	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
+	int _hover_row = -1, _hover_col = -1; // the last block the mouse was over, for Insert and Delete Row and Column
 	// Metatile button properties
 	Metatile_Button *_metatile_buttons[MAX_NUM_METATILES];
 	Metatile_Button *_selected = NULL;
@@ -211,6 +213,7 @@ private:
 	void add_sub_metatiles(size_t n);
 	void force_add_sub_metatiles(size_t s, size_t n);
 	void resize_map(int w, int h);
+	void edit_map_shape(Map::Edit e);
 	bool save_map(bool force);
 	bool save_metatileset(void);
 	bool save_tileset(void);
@@ -298,6 +301,10 @@ private:
 	// Tools menu
 	static void add_sub_cb(Fl_Widget *w, Main_Window *mw);
 	static void resize_cb(Fl_Widget *w, Main_Window *mw);
+	static void insert_row_cb(Fl_Widget *w, Main_Window *mw);
+	static void delete_row_cb(Fl_Widget *w, Main_Window *mw);
+	static void insert_column_cb(Fl_Widget *w, Main_Window *mw);
+	static void delete_column_cb(Fl_Widget *w, Main_Window *mw);
 	static void change_tileset_cb(Fl_Widget *w, Main_Window *mw);
 	static void change_roof_cb(Fl_Widget *w, Main_Window *mw);
 	static void edit_tileset_cb(Fl_Widget *w, Main_Window *mw);

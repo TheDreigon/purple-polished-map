@@ -30,6 +30,8 @@ protected:
 	};
 public:
 	enum class Result { MAP_OK, MAP_BAD_FILE, MAP_TOO_SHORT, MAP_TOO_LONG, MAP_NULL };
+	// Inserting or deleting a whole row or column in the middle of the map
+	enum class Edit { INSERT_ROW, DELETE_ROW, INSERT_COLUMN, DELETE_COLUMN };
 private:
 	Map_Attributes _attributes;
 	uint8_t _width, _height;
@@ -90,6 +92,9 @@ private:
 public:
 	static const char *error_message(Result result);
 	static std::string size_hint(uint8_t w, uint8_t h, size_t file_size);
+	static bool edited_size(Edit e, int w, int h, int &nw, int &nh);
+	static std::vector<size_t> edited_sources(Edit e, int w, int h, int at);
+	static bool edited_event_coords(Edit e, int at, int16_t &ex, int16_t &ey);
 };
 
 #endif

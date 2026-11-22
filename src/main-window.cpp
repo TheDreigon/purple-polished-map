@@ -348,7 +348,11 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 		OS_MENU_ITEM("&Redo", FL_COMMAND + 'y', (Fl_Callback *)redo_cb, this, FL_MENU_DIVIDER),
 		OS_MENU_ITEM("&Copy Block", FL_COMMAND + 'c', (Fl_Callback *)copy_metatile_cb, this, 0),
 		OS_MENU_ITEM("&Paste Block", FL_COMMAND + 'v', (Fl_Callback *)paste_metatile_cb, this, 0),
-		OS_MENU_ITEM("S&wap Block", FL_COMMAND + 'x', (Fl_Callback *)swap_metatiles_cb, this, 0),
+		OS_MENU_ITEM("S&wap Block", FL_COMMAND + 'x', (Fl_Callback *)swap_metatiles_cb, this, FL_MENU_DIVIDER),
+		OS_MENU_ITEM("&Insert Row", FL_COMMAND + FL_Insert, (Fl_Callback *)insert_row_cb, this, 0),
+		OS_MENU_ITEM("&Delete Row", FL_COMMAND + FL_Delete, (Fl_Callback *)delete_row_cb, this, 0),
+		OS_MENU_ITEM("I&nsert Column", FL_COMMAND + FL_SHIFT + FL_Insert, (Fl_Callback *)insert_column_cb, this, 0),
+		OS_MENU_ITEM("De&lete Column", FL_COMMAND + FL_SHIFT + FL_Delete, (Fl_Callback *)delete_column_cb, this, 0),
 		{},
 		OS_SUBMENU("&View"),
 		OS_MENU_ITEM("&Theme", 0, NULL, NULL, FL_SUBMENU | FL_MENU_DIVIDER),
@@ -547,6 +551,10 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_swap_block_mi = PM_FIND_MENU_ITEM_CB(swap_metatiles_cb);
 	_resize_blockset_mi = PM_FIND_MENU_ITEM_CB(add_sub_cb);
 	_resize_map_mi = PM_FIND_MENU_ITEM_CB(resize_cb);
+	_insert_row_mi = PM_FIND_MENU_ITEM_CB(insert_row_cb);
+	_delete_row_mi = PM_FIND_MENU_ITEM_CB(delete_row_cb);
+	_insert_column_mi = PM_FIND_MENU_ITEM_CB(insert_column_cb);
+	_delete_column_mi = PM_FIND_MENU_ITEM_CB(delete_column_cb);
 	_change_tileset_mi = PM_FIND_MENU_ITEM_CB(change_tileset_cb);
 	_edit_tileset_mi = PM_FIND_MENU_ITEM_CB(edit_tileset_cb);
 	_change_roof_mi = PM_FIND_MENU_ITEM_CB(change_roof_cb);
@@ -970,6 +978,8 @@ void Main_Window::update_status(Block *b) {
 		return;
 	}
 	uint8_t row = b->row(), col = b->col(), id = b->id();
+	_hover_row = row;
+	_hover_col = col;
 	bool hex_ = hex();
 	sprintf(buffer, (hex_ ? "ID: $%02X" : "ID: %u"), id);
 	_hover_id->copy_label(buffer);
@@ -1090,6 +1100,10 @@ void Main_Window::update_active_controls() {
 		_resize_blockset_mi->activate();
 		_add_sub_tb->activate();
 		_resize_map_mi->activate();
+		_insert_row_mi->activate();
+		_delete_row_mi->activate();
+		_insert_column_mi->activate();
+		_delete_column_mi->activate();
 		_resize_tb->activate();
 		_change_tileset_mi->activate();
 		_change_tileset_tb->activate();
@@ -1143,6 +1157,10 @@ void Main_Window::update_active_controls() {
 		_resize_blockset_mi->deactivate();
 		_add_sub_tb->deactivate();
 		_resize_map_mi->deactivate();
+		_insert_row_mi->deactivate();
+		_delete_row_mi->deactivate();
+		_insert_column_mi->deactivate();
+		_delete_column_mi->deactivate();
 		_resize_tb->deactivate();
 		_change_tileset_mi->deactivate();
 		_edit_tileset_mi->deactivate();
@@ -2125,6 +2143,127 @@ void Main_Window::resize_map(int w, int h) {
 	redraw();
 }
 
+// Inserts or deletes a whole row or column at the block under the mouse (or the last block it
+// was over): a new row goes above that block and a new column to its left, both starting as a
+// copy of that block's row or column. The blocks and events after it move along. Like Resize
+// Map, this cannot be undone, and the map's size in map_constants.asm has to be changed by hand.
+void Main_Window::edit_map_shape(Map::Edit e) {
+	if (!_map.size()) { return; }
+	Block *hovered = dynamic_cast<Block *>(Fl::belowmouse());
+	int row = hovered ? hovered->row() : _hover_row, col = hovered ? hovered->col() : _hover_col;
+	if (row < 0 || col < 0 || row >= _map.height() || col >= _map.width()) {
+		std::string msg = "Point at a block of the map first!\n\n"
+			"The row or column is inserted or deleted where the mouse is.";
+		_error_dialog->message(msg);
+		_error_dialog->show(this);
+		return;
+	}
+	int w = _map.width(), h = _map.height(), nw, nh;
+	if (!Map::edited_size(e, w, h, nw, nh)) {
+		std::string msg = "A map must be from 1 to 255 blocks wide and high!";
+		_error_dialog->message(msg);
+		_error_dialog->show(this);
+		return;
+	}
+	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
+	int at = rows ? row : col;
+	std::vector<size_t> sources = Map::edited_sources(e, w, h, at);
+
+	// Each old block is used again once; a copy gets a new block with the same ID
+	std::vector<Block *> old_blocks(_map.size());
+	for (size_t i = 0; i < old_blocks.size(); i++) {
+		old_blocks[i] = _map.block(i);
+	}
+	std::vector<bool> used(old_blocks.size(), false);
+	std::vector<Block *> blocks;
+	blocks.reserve(sources.size());
+	for (size_t s : sources) {
+		Block *b = old_blocks[s];
+		if (used[s]) {
+			uint8_t id = b->id();
+			b = new Block();
+			b->callback((Fl_Callback *)change_block_cb, this);
+			b->id(id);
+		}
+		used[s] = true;
+		blocks.push_back(b);
+	}
+
+	int scroll_x = _map_scroll->xposition(), scroll_y = _map_scroll->yposition();
+	while (_map_group->children()) {
+		_map_group->remove(0);
+	}
+	for (size_t i = 0; i < old_blocks.size(); i++) {
+		if (!used[i]) { delete old_blocks[i]; } // a deleted row or column
+	}
+	for (Block *b : blocks) {
+		_map_group->add(b);
+	}
+	size_t n = _map_events.size();
+	for (size_t i = 0; i < n; i++) {
+		Event *ev = _map_events.event(i);
+		int16_t ex = ev->event_x(), ey = ev->event_y();
+		if (Map::edited_event_coords(e, at, ex, ey)) {
+			ev->coords(ex, ey);
+			ev->update_tooltip();
+			_map_events.modified(true);
+		}
+		_map_group->add(ev);
+	}
+	// The hidden objects stay where their file puts them
+	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		_map_group->add(marker);
+	}
+	// The connections depend on the map's size, so they are made again below
+	for (Connection_View *view : _connection_views) {
+		delete view;
+	}
+	_connection_views.clear();
+
+	int ms = metatile_size();
+	_map_group->size(ms * (nw + EVENT_MARGIN), ms * (nh + EVENT_MARGIN));
+	_map.resize((uint8_t)nw, (uint8_t)nh);
+	size_t i = 0;
+	for (int y = 0; y < nh; y++) {
+		for (int x = 0; x < nw; x++) {
+			Block *block = blocks[i++];
+			block->coords((uint8_t)y, (uint8_t)x);
+			_map.block((uint8_t)x, (uint8_t)y, block);
+		}
+	}
+	_map.resize_blocks(_map_group->x(), _map_group->y(), ms);
+	load_connections();
+
+	// Stay at the same place in the map, instead of going back to its top left corner
+	_map_scroll->scroll_to(0, 0);
+	_map_scroll->init_sizes();
+	_map_events.resize_events(_map_group->x(), _map_group->y(), ms / 2);
+	resize_overlays(_map_group->x(), _map_group->y(), ms / 2);
+	_map_scroll->contents(_map_group->w(), _map_group->h());
+	_map_scroll->scroll_to(scroll_x, scroll_y);
+
+	_map.modified(true);
+	update_status((Block *)NULL);
+	update_active_controls();
+	redraw();
+}
+
+void Main_Window::insert_row_cb(Fl_Widget *, Main_Window *mw) {
+	mw->edit_map_shape(Map::Edit::INSERT_ROW);
+}
+
+void Main_Window::delete_row_cb(Fl_Widget *, Main_Window *mw) {
+	mw->edit_map_shape(Map::Edit::DELETE_ROW);
+}
+
+void Main_Window::insert_column_cb(Fl_Widget *, Main_Window *mw) {
+	mw->edit_map_shape(Map::Edit::INSERT_COLUMN);
+}
+
+void Main_Window::delete_column_cb(Fl_Widget *, Main_Window *mw) {
+	mw->edit_map_shape(Map::Edit::DELETE_COLUMN);
+}
+
 // The map and its events have to match each other (resizing a map also moves its events).
 // So before File > Save writes either file, ask about overwriting any of the two that
 // another program has changed. Returns false if the user canceled; then neither is written.
@@ -2743,6 +2882,7 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 	mw->_map_group->clear();
 	mw->_hidden_object_markers.clear(); // deleted with the other widgets of the map
 	mw->_connection_views.clear();
+	mw->_hover_row = mw->_hover_col = -1;
 	mw->_passable_tiles.clear();
 	mw->_map_group->size(0, 0);
 	mw->_map.clear();

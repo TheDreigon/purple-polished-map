@@ -308,6 +308,75 @@ TEST(map_tells_which_blocks_it_uses) {
 	CHECK(!map.uses_block(1));
 }
 
+static std::vector<size_t> indices(std::initializer_list<size_t> values) {
+	return std::vector<size_t>(values);
+}
+
+TEST(map_inserts_a_row_in_the_middle) {
+	// A 3 x 2 map: blocks 0 1 2 / 3 4 5. The new row goes before row 1 and starts as a copy of it.
+	int nw = 0, nh = 0;
+	CHECK(Map::edited_size(Map::Edit::INSERT_ROW, 3, 2, nw, nh));
+	CHECK_EQ(nw, 3);
+	CHECK_EQ(nh, 3);
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 1) == indices({0, 1, 2, 3, 4, 5, 3, 4, 5}));
+	// Before the first row, and after the last one (a copy of the last one)
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 0) == indices({0, 1, 2, 0, 1, 2, 3, 4, 5}));
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 2) == indices({0, 1, 2, 3, 4, 5, 3, 4, 5}));
+}
+
+TEST(map_deletes_a_row) {
+	int nw = 0, nh = 0;
+	CHECK(Map::edited_size(Map::Edit::DELETE_ROW, 3, 3, nw, nh));
+	CHECK_EQ(nh, 2);
+	// Blocks 0 1 2 / 3 4 5 / 6 7 8 without the middle row
+	CHECK(Map::edited_sources(Map::Edit::DELETE_ROW, 3, 3, 1) == indices({0, 1, 2, 6, 7, 8}));
+	CHECK(Map::edited_sources(Map::Edit::DELETE_ROW, 3, 3, 2) == indices({0, 1, 2, 3, 4, 5}));
+}
+
+TEST(map_inserts_and_deletes_columns) {
+	// Blocks 0 1 2 / 3 4 5
+	CHECK(Map::edited_sources(Map::Edit::INSERT_COLUMN, 3, 2, 1) == indices({0, 1, 1, 2, 3, 4, 4, 5}));
+	CHECK(Map::edited_sources(Map::Edit::INSERT_COLUMN, 3, 2, 3) == indices({0, 1, 2, 2, 3, 4, 5, 5}));
+	CHECK(Map::edited_sources(Map::Edit::DELETE_COLUMN, 3, 2, 0) == indices({1, 2, 4, 5}));
+}
+
+TEST(map_keeps_rows_and_columns_between_1_and_255) {
+	int nw = 0, nh = 0;
+	CHECK(!Map::edited_size(Map::Edit::DELETE_ROW, 5, 1, nw, nh));
+	CHECK(!Map::edited_size(Map::Edit::DELETE_COLUMN, 1, 5, nw, nh));
+	CHECK(!Map::edited_size(Map::Edit::INSERT_ROW, 5, 255, nw, nh));
+	CHECK(!Map::edited_size(Map::Edit::INSERT_COLUMN, 255, 5, nw, nh));
+	CHECK(Map::edited_sources(Map::Edit::DELETE_ROW, 5, 1, 0).empty());
+}
+
+TEST(map_moves_events_with_inserted_and_deleted_rows) {
+	// Event coordinates are in half blocks: row 1 holds event rows 2 and 3
+	int16_t ex = 5, ey = 2;
+	CHECK(Map::edited_event_coords(Map::Edit::INSERT_ROW, 1, ex, ey));
+	CHECK_EQ(ey, 4);
+	CHECK_EQ(ex, 5);
+	ey = 1; // above the new row
+	CHECK(!Map::edited_event_coords(Map::Edit::INSERT_ROW, 1, ex, ey));
+	CHECK_EQ(ey, 1);
+	ey = -3; // in the margin above the map
+	CHECK(!Map::edited_event_coords(Map::Edit::INSERT_ROW, 1, ex, ey));
+
+	ey = 4; // below the deleted row
+	CHECK(Map::edited_event_coords(Map::Edit::DELETE_ROW, 1, ex, ey));
+	CHECK_EQ(ey, 2);
+	ey = 3; // on the deleted row: stays, on the row that takes its place
+	CHECK(!Map::edited_event_coords(Map::Edit::DELETE_ROW, 1, ex, ey));
+	CHECK_EQ(ey, 3);
+
+	ex = 6;
+	ey = 9;
+	CHECK(Map::edited_event_coords(Map::Edit::INSERT_COLUMN, 3, ex, ey));
+	CHECK_EQ(ex, 8);
+	CHECK_EQ(ey, 9);
+	CHECK(Map::edited_event_coords(Map::Edit::DELETE_COLUMN, 2, ex, ey));
+	CHECK_EQ(ex, 6);
+}
+
 TEST(map_clear_forgets_everything) {
 	Map map;
 	load_small_map(map, 2, 2, "\x01\x02\x03\x04");

@@ -195,6 +195,72 @@ bool Map::write_blocks(const char *f) {
 	return true;
 }
 
+// The size of a w x h map after the edit. Returns false if the edit is not possible:
+// a map is 1 to 255 blocks wide and high.
+bool Map::edited_size(Edit e, int w, int h, int &nw, int &nh) {
+	nw = w;
+	nh = h;
+	switch (e) {
+	case Edit::INSERT_ROW: nh++; break;
+	case Edit::DELETE_ROW: nh--; break;
+	case Edit::INSERT_COLUMN: nw++; break;
+	case Edit::DELETE_COLUMN: nw--; break;
+	}
+	return nw >= 1 && nh >= 1 && nw <= 255 && nh <= 255;
+}
+
+// For each block of the edited map, row by row, the index of the block of the old map that it
+// shows. A row or column is inserted before row or column "at" (at the end if "at" is past the
+// last one) and starts as a copy of the one it is inserted before, or of the last one at the end.
+// A deleted row or column is "at" itself. Returns nothing if the edit is not possible.
+std::vector<size_t> Map::edited_sources(Edit e, int w, int h, int at) {
+	std::vector<size_t> sources;
+	int nw, nh;
+	if (!edited_size(e, w, h, nw, nh)) { return sources; }
+	bool rows = e == Edit::INSERT_ROW || e == Edit::DELETE_ROW;
+	int n = rows ? h : w;
+	if (e == Edit::INSERT_ROW || e == Edit::INSERT_COLUMN) { at = std::clamp(at, 0, n); }
+	else { at = std::clamp(at, 0, n - 1); }
+	for (int y = 0; y < nh; y++) {
+		for (int x = 0; x < nw; x++) {
+			int ox = x, oy = y;
+			int &o = rows ? oy : ox;
+			switch (e) {
+			case Edit::INSERT_ROW:
+			case Edit::INSERT_COLUMN:
+				if (o > at) { o--; }
+				else if (o == at && at == n) { o = n - 1; } // the copy of the last one, at the end
+				break;
+			case Edit::DELETE_ROW:
+			case Edit::DELETE_COLUMN:
+				if (o >= at) { o++; }
+				break;
+			}
+			sources.push_back((size_t)oy * w + ox);
+		}
+	}
+	return sources;
+}
+
+// Moves an event (whose coordinates are in half blocks) along with the blocks around it.
+// Events on a deleted row or column stay where they are, on the row or column that takes its
+// place. Returns whether the event moved.
+bool Map::edited_event_coords(Edit e, int at, int16_t &ex, int16_t &ey) {
+	int16_t &c = (e == Edit::INSERT_ROW || e == Edit::DELETE_ROW) ? ey : ex;
+	int16_t before = c;
+	switch (e) {
+	case Edit::INSERT_ROW:
+	case Edit::INSERT_COLUMN:
+		if (c >= at * 2) { c = std::min((int16_t)(c + 2), MAX_EVENT_COORD); }
+		break;
+	case Edit::DELETE_ROW:
+	case Edit::DELETE_COLUMN:
+		if (c >= at * 2 + 2) { c = std::max((int16_t)(c - 2), MIN_EVENT_COORD); }
+		break;
+	}
+	return c != before;
+}
+
 // Explains a .blk file that does not match the chosen size, and suggests sizes that do match
 std::string Map::size_hint(uint8_t w, uint8_t h, size_t file_size) {
 	size_t n = (size_t)w * (size_t)h;
