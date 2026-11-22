@@ -250,9 +250,10 @@ bool Map::edited_size(Edit e, int w, int h, int &nw, int &nh) {
 
 // For each block of the edited map, row by row, the index of the block of the old map that it
 // shows. A row or column is inserted before row or column "at" (at the end if "at" is past the
-// last one) and starts as a copy of the one it is inserted before, or of the last one at the end.
+// last one) and starts as a copy of the one it is inserted before, or of the last one at the end;
+// with copy_before, a copy of the one before it instead (the one above or to the left), if any.
 // A deleted row or column is "at" itself. Returns nothing if the edit is not possible.
-std::vector<size_t> Map::edited_sources(Edit e, int w, int h, int at) {
+std::vector<size_t> Map::edited_sources(Edit e, int w, int h, int at, bool copy_before) {
 	std::vector<size_t> sources;
 	int nw, nh;
 	if (!edited_size(e, w, h, nw, nh)) { return sources; }
@@ -268,6 +269,7 @@ std::vector<size_t> Map::edited_sources(Edit e, int w, int h, int at) {
 			case Edit::INSERT_ROW:
 			case Edit::INSERT_COLUMN:
 				if (o > at) { o--; }
+				else if (o == at && copy_before && at > 0) { o = at - 1; } // a copy of the one before
 				else if (o == at && at == n) { o = n - 1; } // the copy of the last one, at the end
 				break;
 			case Edit::DELETE_ROW:

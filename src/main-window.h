@@ -221,10 +221,11 @@ private:
 	void force_add_sub_metatiles(size_t s, size_t n);
 	void resize_map(int w, int h);
 	void edit_map_shape(Map::Edit e);
-	void edit_map_shape_at(Map::Edit e, int at);
+	void edit_map_shape_at(Map::Edit e, int at, bool toward_start = false);
 	Map::Event_Coords event_coords(void) const;
 	void apply_snapshot(const Map::Snapshot &s);
-	void rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused);
+	void rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused,
+		int scroll_dx = 0, int scroll_dy = 0);
 	bool save_map(bool force);
 	bool save_metatileset(void);
 	bool save_tileset(void);

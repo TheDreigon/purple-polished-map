@@ -691,7 +691,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_resize_tb->callback((Fl_Callback *)resize_cb, this);
 	_resize_tb->image(RESIZE_ICON);
 
-	_row_column_tb->tooltip("Row and Column Tool (Ctrl+Shift+I): click between two rows or columns to insert one");
+	_row_column_tb->tooltip("Row and Column Tool (Ctrl+Shift+I): click between two rows or columns to insert one\n(a copy of the row below or column to the right; Shift+click: of the row above or column to the left)");
 	_row_column_tb->callback((Fl_Callback *)row_column_tb_cb, this);
 	_row_column_tb->image(ROW_COLUMN_ICON);
 	_row_column_tb->value(row_column_tool());
@@ -2194,8 +2194,10 @@ void Main_Window::edit_map_shape(Map::Edit e) {
 }
 
 // Inserts a row or column before row or column "at" (after the last one if "at" is past it),
-// or deletes row or column "at"
-void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
+// or deletes row or column "at". A new row or column copies the one after it, and the view keeps
+// what is before it in place; toward_start makes it copy the one before it, and the view keep
+// what is after it in place, so the map seems to grow upward or to the left.
+void Main_Window::edit_map_shape_at(Map::Edit e, int at, bool toward_start) {
 	if (!_map.size()) { return; }
 	int w = _map.width(), h = _map.height(), nw, nh;
 	if (!Map::edited_size(e, w, h, nw, nh)) {
@@ -2204,7 +2206,7 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
 		_error_dialog->show(this);
 		return;
 	}
-	std::vector<size_t> sources = Map::edited_sources(e, w, h, at);
+	std::vector<size_t> sources = Map::edited_sources(e, w, h, at, toward_start);
 	clear_row_column_line(); // the map under it is about to change
 	_map.remember(event_coords()); // for Undo
 
@@ -2242,7 +2244,9 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
 			_map_events.modified(true);
 		}
 	}
-	rebuild_map_widgets(nw, nh, blocks, unused);
+	int s = toward_start ? metatile_size() : 0;
+	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
+	rebuild_map_widgets(nw, nh, blocks, unused, rows ? 0 : s, rows ? s : 0);
 }
 
 // Where the events are, for Undo and Redo of changes of size
@@ -2295,8 +2299,9 @@ void Main_Window::apply_snapshot(const Map::Snapshot &s) {
 // Puts the given blocks (row by row) in the map for a nw x nh map, with the events, hidden objects
 // and connections around them, and deletes the blocks no longer used. The map's own record is
 // resized, but its Undo history is kept.
-void Main_Window::rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused) {
-	int scroll_x = _map_scroll->xposition(), scroll_y = _map_scroll->yposition();
+void Main_Window::rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused,
+	int scroll_dx, int scroll_dy) {
+	int scroll_x = _map_scroll->xposition() + scroll_dx, scroll_y = _map_scroll->yposition() + scroll_dy;
 	while (_map_group->children()) {
 		_map_group->remove(0);
 	}
@@ -4175,7 +4180,8 @@ void Main_Window::change_block_cb(Block *b, Main_Window *mw) {
 			if (mw->_line_index >= 0) {
 				bool horizontal = mw->_line_horizontal;
 				int at = mw->_line_index;
-				mw->edit_map_shape_at(horizontal ? Map::Edit::INSERT_ROW : Map::Edit::INSERT_COLUMN, at);
+				// Shift+click copies the row above or the column to the left instead
+				mw->edit_map_shape_at(horizontal ? Map::Edit::INSERT_ROW : Map::Edit::INSERT_COLUMN, at, Fl::event_shift() != 0);
 			}
 		}
 		return;

@@ -374,6 +374,18 @@ TEST(map_inserts_a_row_in_the_middle) {
 	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 2) == indices({0, 1, 2, 3, 4, 5, 3, 4, 5}));
 }
 
+TEST(map_inserts_a_copy_of_the_row_above_or_the_column_to_the_left) {
+	// Shift+click with the Row and Column Tool: blocks 0 1 2 / 3 4 5, a new row before row 1
+	// that copies row 0
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 1, true) == indices({0, 1, 2, 0, 1, 2, 3, 4, 5}));
+	// After the last row it copies the last row, as without copy_before
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 2, true) == indices({0, 1, 2, 3, 4, 5, 3, 4, 5}));
+	// Before the first row there is nothing before it, so it copies the first row
+	CHECK(Map::edited_sources(Map::Edit::INSERT_ROW, 3, 2, 0, true) == indices({0, 1, 2, 0, 1, 2, 3, 4, 5}));
+	// A new column before column 2 that copies column 1
+	CHECK(Map::edited_sources(Map::Edit::INSERT_COLUMN, 3, 2, 2, true) == indices({0, 1, 1, 2, 3, 4, 4, 5}));
+}
+
 TEST(map_deletes_a_row) {
 	int nw = 0, nh = 0;
 	CHECK(Map::edited_size(Map::Edit::DELETE_ROW, 3, 3, nw, nh));

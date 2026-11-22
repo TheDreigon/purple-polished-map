@@ -104,7 +104,7 @@ public:
 	static const char *error_message(Result result);
 	static std::string size_hint(uint8_t w, uint8_t h, size_t file_size);
 	static bool edited_size(Edit e, int w, int h, int &nw, int &nh);
-	static std::vector<size_t> edited_sources(Edit e, int w, int h, int at);
+	static std::vector<size_t> edited_sources(Edit e, int w, int h, int at, bool copy_before = false);
 	static bool edited_event_coords(Edit e, int at, int16_t &ex, int16_t &ey);
 };
 
