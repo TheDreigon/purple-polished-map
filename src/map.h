@@ -22,13 +22,16 @@ public:
 };
 
 class Map {
-protected:
-	struct Map_State {
-		std::vector<uint8_t> ids;
-		Map_State() : ids() {}
-		Map_State(size_t n) : ids(n) {}
-	};
 public:
+	// What the map was like before a change, for Undo and Redo. A change of size (Resize Map,
+	// inserting or deleting rows and columns) also keeps where the events were, since it moves them.
+	typedef std::vector<std::pair<int16_t, int16_t>> Event_Coords;
+	struct Snapshot {
+		uint8_t width = 0, height = 0;
+		std::vector<uint8_t> ids;
+		bool has_events = false;
+		Event_Coords events;
+	};
 	enum class Result { MAP_OK, MAP_BAD_FILE, MAP_TOO_SHORT, MAP_TOO_LONG, MAP_NULL };
 	// Inserting or deleting a whole row or column in the middle of the map
 	enum class Edit { INSERT_ROW, DELETE_ROW, INSERT_COLUMN, DELETE_COLUMN };
@@ -38,7 +41,7 @@ private:
 	Block **_blocks;
 	Result _result;
 	bool _modified;
-	std::deque<Map_State> _history, _future;
+	std::deque<Snapshot> _history, _future;
 	int64_t _mod_time;
 public:
 	Map();
@@ -83,8 +86,16 @@ public:
 	void clear();
 	void resize_blocks(int x, int y, int s) const;
 	void remember(void);
+	void remember(const Event_Coords &events);
+	bool undo_resizes(void) const;
+	bool redo_resizes(void) const;
+	Snapshot take_undo(const Event_Coords &events);
+	Snapshot take_redo(const Event_Coords &events);
 	void undo(void);
 	void redo(void);
+private:
+	Snapshot snapshot(void) const;
+public:
 	Result read_blocks(const char *f);
 	bool write_blocks(const char *f);
 private:

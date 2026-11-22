@@ -2070,6 +2070,7 @@ void Main_Window::force_add_sub_metatiles(size_t s, size_t n) {
 }
 
 void Main_Window::resize_map(int w, int h) {
+	_map.remember(event_coords()); // for Undo
 	int dw = w - _map.width(), dh = h - _map.height();
 
 	int px, py;
@@ -2205,6 +2206,7 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
 	}
 	std::vector<size_t> sources = Map::edited_sources(e, w, h, at);
 	clear_row_column_line(); // the map under it is about to change
+	_map.remember(event_coords()); // for Undo
 
 	// Each old block is used again once; a copy gets a new block with the same ID
 	std::vector<Block *> old_blocks(_map.size());
@@ -2225,17 +2227,11 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
 		used[s] = true;
 		blocks.push_back(b);
 	}
-
-	int scroll_x = _map_scroll->xposition(), scroll_y = _map_scroll->yposition();
-	while (_map_group->children()) {
-		_map_group->remove(0);
-	}
+	std::vector<Block *> unused;
 	for (size_t i = 0; i < old_blocks.size(); i++) {
-		if (!used[i]) { delete old_blocks[i]; } // a deleted row or column
+		if (!used[i]) { unused.push_back(old_blocks[i]); } // a deleted row or column
 	}
-	for (Block *b : blocks) {
-		_map_group->add(b);
-	}
+
 	size_t n = _map_events.size();
 	for (size_t i = 0; i < n; i++) {
 		Event *ev = _map_events.event(i);
@@ -2245,7 +2241,74 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
 			ev->update_tooltip();
 			_map_events.modified(true);
 		}
-		_map_group->add(ev);
+	}
+	rebuild_map_widgets(nw, nh, blocks, unused);
+}
+
+// Where the events are, for Undo and Redo of changes of size
+Map::Event_Coords Main_Window::event_coords() const {
+	Map::Event_Coords coords;
+	size_t n = _map_events.size();
+	for (size_t i = 0; i < n; i++) {
+		const Event *ev = _map_events.event(i);
+		coords.emplace_back(ev->event_x(), ev->event_y());
+	}
+	return coords;
+}
+
+// Undo or Redo of a change of size: rebuilds the map as the snapshot has it, and puts the events
+// back where they were then (if they are still the same events)
+void Main_Window::apply_snapshot(const Map::Snapshot &s) {
+	clear_row_column_line();
+	std::vector<Block *> old_blocks(_map.size());
+	for (size_t i = 0; i < old_blocks.size(); i++) {
+		old_blocks[i] = _map.block(i);
+	}
+	size_t n = (size_t)s.width * s.height;
+	std::vector<Block *> blocks(n), unused;
+	for (size_t i = 0; i < n; i++) {
+		Block *b = i < old_blocks.size() ? old_blocks[i] : NULL;
+		if (!b) {
+			b = new Block();
+			b->callback((Fl_Callback *)change_block_cb, this);
+		}
+		b->id(i < s.ids.size() ? s.ids[i] : 0);
+		blocks[i] = b;
+	}
+	for (size_t i = n; i < old_blocks.size(); i++) {
+		unused.push_back(old_blocks[i]);
+	}
+
+	if (s.has_events && s.events.size() == _map_events.size()) {
+		for (size_t i = 0; i < s.events.size(); i++) {
+			Event *ev = _map_events.event(i);
+			if (ev->event_x() != s.events[i].first || ev->event_y() != s.events[i].second) {
+				ev->coords(s.events[i].first, s.events[i].second);
+				ev->update_tooltip();
+				_map_events.modified(true);
+			}
+		}
+	}
+	rebuild_map_widgets(s.width, s.height, blocks, unused);
+}
+
+// Puts the given blocks (row by row) in the map for a nw x nh map, with the events, hidden objects
+// and connections around them, and deletes the blocks no longer used. The map's own record is
+// resized, but its Undo history is kept.
+void Main_Window::rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused) {
+	int scroll_x = _map_scroll->xposition(), scroll_y = _map_scroll->yposition();
+	while (_map_group->children()) {
+		_map_group->remove(0);
+	}
+	for (Block *b : unused) {
+		delete b;
+	}
+	for (Block *b : blocks) {
+		_map_group->add(b);
+	}
+	size_t n = _map_events.size();
+	for (size_t i = 0; i < n; i++) {
+		_map_group->add(_map_events.event(i));
 	}
 	// The hidden objects stay where their file puts them
 	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
@@ -3421,14 +3484,25 @@ void Main_Window::exit_cb(Fl_Widget *, Main_Window *mw) {
 
 void Main_Window::undo_cb(Fl_Widget *, Main_Window *mw) {
 	if (!mw->_map.size()) { return; }
-	mw->_map.undo();
+	if (mw->_map.undo_resizes()) {
+		// Undoing Resize Map or an inserted or deleted row or column
+		mw->apply_snapshot(mw->_map.take_undo(mw->event_coords()));
+	}
+	else {
+		mw->_map.undo();
+	}
 	mw->update_active_controls();
 	mw->redraw();
 }
 
 void Main_Window::redo_cb(Fl_Widget *, Main_Window *mw) {
 	if (!mw->_map.size()) { return; }
-	mw->_map.redo();
+	if (mw->_map.redo_resizes()) {
+		mw->apply_snapshot(mw->_map.take_redo(mw->event_coords()));
+	}
+	else {
+		mw->_map.redo();
+	}
 	mw->update_active_controls();
 	mw->redraw();
 }

@@ -26,15 +26,13 @@ void Map::size(uint8_t w, uint8_t h) {
 
 // Changes the dimensions of a loaded map; the caller then places the blocks.
 // Unlike size(), which starts a map from scratch, this keeps what is known about
-// the map and its file: its attributes, its result and when its file was last read.
+// the map and its file: its attributes, its result, when its file was last read,
+// and its Undo and Redo history (whose snapshots know their own size).
 void Map::resize(uint8_t w, uint8_t h) {
 	delete [] _blocks;
 	_width = w;
 	_height = h;
 	_blocks = new Block *[size()]();
-	// The remembered edits are for the old dimensions
-	_history.clear();
-	_future.clear();
 	_modified = true;
 }
 
@@ -77,28 +75,74 @@ void Map::resize_blocks(int x, int y, int s) const {
 	}
 }
 
+Map::Snapshot Map::snapshot() const {
+	Snapshot s;
+	s.width = _width;
+	s.height = _height;
+	s.ids.resize(size());
+	for (size_t i = 0; i < size(); i++) {
+		s.ids[i] = block(i)->id();
+	}
+	return s;
+}
+
+// Remembers the blocks before an edit that keeps the map's size
 void Map::remember() {
 	_future.clear();
 	while (_history.size() >= MAX_HISTORY_SIZE) { _history.pop_front(); }
-
-	Map_State ms(size());
-	for (size_t i = 0; i < size(); i++) {
-		ms.ids[i] = block(i)->id();
-	}
-	_history.push_back(ms);
+	_history.push_back(snapshot());
 }
 
-void Map::undo() {
-	if (_history.empty()) { return; }
+// Remembers the blocks and where the events are before an edit that changes the map's size
+void Map::remember(const Event_Coords &events) {
+	remember();
+	_history.back().has_events = true;
+	_history.back().events = events;
+}
+
+// Whether Undo or Redo changes the map's size; then the caller rebuilds the map with
+// take_undo() or take_redo() instead of calling undo() or redo()
+bool Map::undo_resizes() const {
+	return !_history.empty() && (_history.back().width != _width || _history.back().height != _height);
+}
+
+bool Map::redo_resizes() const {
+	return !_future.empty() && (_future.back().width != _width || _future.back().height != _height);
+}
+
+// Gives the map as it was before the last edit, for the caller to rebuild it, and keeps the
+// current map (with where its events are) for Redo
+Map::Snapshot Map::take_undo(const Event_Coords &events) {
+	Snapshot now = snapshot();
+	now.has_events = true;
+	now.events = events;
+	Snapshot then = _history.back();
+	_history.pop_back();
 	while (_future.size() >= MAX_HISTORY_SIZE) { _future.pop_front(); }
+	_future.push_back(now);
+	_modified = true;
+	return then;
+}
 
-	Map_State ms(size());
-	for (size_t i = 0; i < size(); i++) {
-		ms.ids[i] = block(i)->id();
-	}
-	_future.push_back(ms);
+Map::Snapshot Map::take_redo(const Event_Coords &events) {
+	Snapshot now = snapshot();
+	now.has_events = true;
+	now.events = events;
+	Snapshot next = _future.back();
+	_future.pop_back();
+	while (_history.size() >= MAX_HISTORY_SIZE) { _history.pop_front(); }
+	_history.push_back(now);
+	_modified = true;
+	return next;
+}
 
-	const Map_State &prev = _history.back();
+// Undoes the last edit when it kept the map's size
+void Map::undo() {
+	if (_history.empty() || undo_resizes()) { return; }
+	while (_future.size() >= MAX_HISTORY_SIZE) { _future.pop_front(); }
+	_future.push_back(snapshot());
+
+	const Snapshot &prev = _history.back();
 	for (size_t i = 0; i < size(); i++) {
 		block(i)->id(prev.ids[i]);
 	}
@@ -109,16 +153,11 @@ void Map::undo() {
 }
 
 void Map::redo() {
-	if (_future.empty()) { return; }
+	if (_future.empty() || redo_resizes()) { return; }
 	while (_history.size() >= MAX_HISTORY_SIZE) { _history.pop_front(); }
+	_history.push_back(snapshot());
 
-	Map_State ms(size());
-	for (size_t i = 0; i < size(); i++) {
-		ms.ids[i] = block(i)->id();
-	}
-	_history.push_back(ms);
-
-	const Map_State &next = _future.back();
+	const Snapshot &next = _future.back();
 	for (size_t i = 0; i < size(); i++) {
 		block(i)->id(next.ids[i]);
 	}

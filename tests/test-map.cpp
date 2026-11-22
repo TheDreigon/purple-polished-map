@@ -281,16 +281,66 @@ TEST(map_resized_keeps_its_attributes) {
 	CHECK(map.is_outside());
 }
 
-TEST(map_resized_cannot_undo_to_the_old_size) {
+// What the window does to put a snapshot back: the map takes the snapshot's size and blocks
+static void apply_like_the_window(Map &map, const Map::Snapshot &s) {
+	resize_like_the_window(map, s.width, s.height);
+	for (size_t i = 0; i < map.size(); i++) {
+		map.block(i)->id(s.ids[i]);
+	}
+}
+
+TEST(map_undoes_and_redoes_a_change_of_size) {
+	// Resize Map and inserting or deleting rows and columns used to empty the Undo history
 	Map map;
 	load_small_map(map, 2, 2, "\x01\x02\x03\x04");
 	map.remember();
-	map.block((size_t)0)->id(9);
+	map.block((size_t)0)->id(9); // a block edit before the change of size
 
-	// The remembered edits are for a map of another size, so they are dropped
-	resize_like_the_window(map, 3, 3);
-	CHECK(!map.can_undo());
-	CHECK(!map.can_redo());
+	// The window remembers the blocks and where the events are, then changes the size
+	map.remember(Map::Event_Coords{{1, 1}, {3, 2}});
+	resize_like_the_window(map, 3, 2);
+	map.block((uint8_t)2, (uint8_t)0)->id(7);
+	map.block((uint8_t)2, (uint8_t)1)->id(8);
+	CHECK(map.can_undo());
+	CHECK(map.undo_resizes());
+
+	// Undo gives the map as it was, with its events, and keeps the current one for Redo
+	Map::Snapshot before = map.take_undo(Map::Event_Coords{{5, 1}, {3, 2}});
+	CHECK_EQ(before.width, 2);
+	CHECK_EQ(before.height, 2);
+	CHECK(before.ids == std::vector<uint8_t>({9, 2, 3, 4}));
+	CHECK(before.has_events);
+	CHECK(before.events == Map::Event_Coords({{1, 1}, {3, 2}}));
+	CHECK(map.modified());
+	apply_like_the_window(map, before);
+	CHECK(map.can_redo());
+	CHECK(map.redo_resizes());
+
+	// The block edit before it is undone the usual way
+	CHECK(!map.undo_resizes());
+	map.undo();
+	CHECK_EQ(ids_of(map), "\x01\x02\x03\x04");
+
+	// Redo brings back the block edit, then the change of size with its events
+	map.redo();
+	CHECK_EQ(ids_of(map), "\x09\x02\x03\x04");
+	REQUIRE(map.redo_resizes());
+	Map::Snapshot after = map.take_redo(Map::Event_Coords{{1, 1}, {3, 2}});
+	CHECK_EQ(after.width, 3);
+	CHECK_EQ(after.height, 2);
+	CHECK(after.ids == std::vector<uint8_t>({9, 2, 7, 3, 4, 8}));
+	CHECK(after.events == Map::Event_Coords({{5, 1}, {3, 2}}));
+}
+
+TEST(map_undo_of_a_change_of_size_needs_the_window) {
+	// undo() and redo() only change blocks, so they leave a change of size to the window
+	Map map;
+	load_small_map(map, 2, 2, "\x01\x02\x03\x04");
+	map.remember(Map::Event_Coords{});
+	resize_like_the_window(map, 3, 2);
+	map.undo();
+	CHECK_EQ(map.width(), 3);
+	CHECK(map.can_undo());
 }
 
 TEST(map_tells_which_blocks_it_uses) {

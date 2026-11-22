@@ -222,6 +222,9 @@ private:
 	void resize_map(int w, int h);
 	void edit_map_shape(Map::Edit e);
 	void edit_map_shape_at(Map::Edit e, int at);
+	Map::Event_Coords event_coords(void) const;
+	void apply_snapshot(const Map::Snapshot &s);
+	void rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused);
 	bool save_map(bool force);
 	bool save_metatileset(void);
 	bool save_tileset(void);
