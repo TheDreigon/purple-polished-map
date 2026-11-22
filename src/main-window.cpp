@@ -169,6 +169,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	new Fl_Box(0, 0, 2, 24); new Spacer(0, 0, 2, 24); new Fl_Box(0, 0, 2, 24);
 	_add_sub_tb = new Toolbar_Button(0, 0, 24, 24);
 	_resize_tb = new Toolbar_Button(0, 0, 24, 24);
+	_row_column_tb = new Toolbar_Toggle_Button(0, 0, 24, 24);
 	new Fl_Box(0, 0, 2, 24); new Spacer(0, 0, 2, 24); new Fl_Box(0, 0, 2, 24);
 	_change_tileset_tb = new Toolbar_Button(0, 0, 24, 24);
 	_edit_tileset_tb = new Toolbar_Button(0, 0, 24, 24);
@@ -349,6 +350,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 		OS_MENU_ITEM("&Copy Block", FL_COMMAND + 'c', (Fl_Callback *)copy_metatile_cb, this, 0),
 		OS_MENU_ITEM("&Paste Block", FL_COMMAND + 'v', (Fl_Callback *)paste_metatile_cb, this, 0),
 		OS_MENU_ITEM("S&wap Block", FL_COMMAND + 'x', (Fl_Callback *)swap_metatiles_cb, this, FL_MENU_DIVIDER),
+		OS_MENU_ITEM("Row and Column &Tool", FL_COMMAND + 'I', (Fl_Callback *)row_column_cb, this, FL_MENU_TOGGLE),
 		OS_MENU_ITEM("&Insert Row", FL_COMMAND + FL_Insert, (Fl_Callback *)insert_row_cb, this, 0),
 		OS_MENU_ITEM("&Delete Row", FL_COMMAND + FL_Delete, (Fl_Callback *)delete_row_cb, this, 0),
 		OS_MENU_ITEM("I&nsert Column", FL_COMMAND + FL_SHIFT + FL_Insert, (Fl_Callback *)insert_column_cb, this, 0),
@@ -555,6 +557,7 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_delete_row_mi = PM_FIND_MENU_ITEM_CB(delete_row_cb);
 	_insert_column_mi = PM_FIND_MENU_ITEM_CB(insert_column_cb);
 	_delete_column_mi = PM_FIND_MENU_ITEM_CB(delete_column_cb);
+	_row_column_mi = PM_FIND_MENU_ITEM_CB(row_column_cb);
 	_change_tileset_mi = PM_FIND_MENU_ITEM_CB(change_tileset_cb);
 	_edit_tileset_mi = PM_FIND_MENU_ITEM_CB(edit_tileset_cb);
 	_change_roof_mi = PM_FIND_MENU_ITEM_CB(change_roof_cb);
@@ -687,6 +690,11 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_resize_tb->tooltip("Resize Map... (Ctrl+E)");
 	_resize_tb->callback((Fl_Callback *)resize_cb, this);
 	_resize_tb->image(RESIZE_ICON);
+
+	_row_column_tb->tooltip("Row and Column Tool (Ctrl+Shift+I): click between two rows or columns to insert one");
+	_row_column_tb->callback((Fl_Callback *)row_column_tb_cb, this);
+	_row_column_tb->image(ROW_COLUMN_ICON);
+	_row_column_tb->value(row_column_tool());
 
 	_change_tileset_tb->tooltip("Change Tileset... (Ctrl+H)");
 	_change_tileset_tb->callback((Fl_Callback *)change_tileset_cb, this);
@@ -879,11 +887,29 @@ const char *Main_Window::modified_filename() {
 }
 
 void Main_Window::draw_overlay() {
+	int sw = _map_scroll->w() - (_map_scroll->has_y_scroll() ? Fl::scrollbar_size() : 0);
+	int sh = _map_scroll->h() - (_map_scroll->has_x_scroll() ? Fl::scrollbar_size() : 0);
 	if (_gameboy_screen) {
-		int sw = _map_scroll->w() - (_map_scroll->has_y_scroll() ? Fl::scrollbar_size() : 0);
-		int sh = _map_scroll->h() - (_map_scroll->has_x_scroll() ? Fl::scrollbar_size() : 0);
 		fl_push_clip(_map_scroll->x(), _map_scroll->y(), sw, sh);
 		Game_Boy_Screen::draw();
+		fl_pop_clip();
+	}
+	if (_line_index >= 0 && row_column_tool() && _map.size()) {
+		// The line between two rows or columns where the Row and Column Tool would insert one
+		int ms = metatile_size();
+		int mx = _map_group->x() + MAP_MARGIN * ms, my = _map_group->y() + MAP_MARGIN * ms;
+		int mw = (int)_map.width() * ms, mh = (int)_map.height() * ms;
+		fl_push_clip(_map_scroll->x(), _map_scroll->y(), sw, sh);
+		if (_line_horizontal) {
+			int ly = my + _line_index * ms;
+			fl_rectf(mx - ms / 2, ly - 3, mw + ms, 6, FL_WHITE);
+			fl_rectf(mx - ms / 2, ly - 2, mw + ms, 4, FL_RED);
+		}
+		else {
+			int lx = mx + _line_index * ms;
+			fl_rectf(lx - 3, my - ms / 2, 6, mh + ms, FL_WHITE);
+			fl_rectf(lx - 2, my - ms / 2, 4, mh + ms, FL_RED);
+		}
 		fl_pop_clip();
 	}
 }
@@ -1104,6 +1130,8 @@ void Main_Window::update_active_controls() {
 		_delete_row_mi->activate();
 		_insert_column_mi->activate();
 		_delete_column_mi->activate();
+		_row_column_mi->activate();
+		_row_column_tb->activate();
 		_resize_tb->activate();
 		_change_tileset_mi->activate();
 		_change_tileset_tb->activate();
@@ -1161,6 +1189,8 @@ void Main_Window::update_active_controls() {
 		_delete_row_mi->deactivate();
 		_insert_column_mi->deactivate();
 		_delete_column_mi->deactivate();
+		_row_column_mi->deactivate();
+		_row_column_tb->deactivate();
 		_resize_tb->deactivate();
 		_change_tileset_mi->deactivate();
 		_edit_tileset_mi->deactivate();
@@ -2158,6 +2188,14 @@ void Main_Window::edit_map_shape(Map::Edit e) {
 		_error_dialog->show(this);
 		return;
 	}
+	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
+	edit_map_shape_at(e, rows ? row : col);
+}
+
+// Inserts a row or column before row or column "at" (after the last one if "at" is past it),
+// or deletes row or column "at"
+void Main_Window::edit_map_shape_at(Map::Edit e, int at) {
+	if (!_map.size()) { return; }
 	int w = _map.width(), h = _map.height(), nw, nh;
 	if (!Map::edited_size(e, w, h, nw, nh)) {
 		std::string msg = "A map must be from 1 to 255 blocks wide and high!";
@@ -2165,9 +2203,8 @@ void Main_Window::edit_map_shape(Map::Edit e) {
 		_error_dialog->show(this);
 		return;
 	}
-	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
-	int at = rows ? row : col;
 	std::vector<size_t> sources = Map::edited_sources(e, w, h, at);
+	clear_row_column_line(); // the map under it is about to change
 
 	// Each old block is used again once; a copy gets a new block with the same ID
 	std::vector<Block *> old_blocks(_map.size());
@@ -2262,6 +2299,48 @@ void Main_Window::insert_column_cb(Fl_Widget *, Main_Window *mw) {
 
 void Main_Window::delete_column_cb(Fl_Widget *, Main_Window *mw) {
 	mw->edit_map_shape(Map::Edit::DELETE_COLUMN);
+}
+
+// With the Row and Column Tool on, pointing at the map picks the line between two rows or two
+// columns nearest to the mouse (the map's outer edges included), and a click inserts a row or
+// column there. Only in Blocks Mode.
+void Main_Window::update_row_column_line(Block *b) {
+	if (!b || !row_column_tool() || _mode != Mode::BLOCKS) {
+		clear_row_column_line();
+		return;
+	}
+	int s = b->w();
+	if (s <= 0) { return; }
+	int lx = std::clamp(Fl::event_x() - b->x(), 0, s), ly = std::clamp(Fl::event_y() - b->y(), 0, s);
+	int to_row_line = std::min(ly, s - ly), to_column_line = std::min(lx, s - lx);
+	bool horizontal = to_row_line <= to_column_line;
+	int index = horizontal ? b->row() + (ly * 2 >= s ? 1 : 0) : b->col() + (lx * 2 >= s ? 1 : 0);
+	cursor(horizontal ? FL_CURSOR_NS : FL_CURSOR_WE);
+	if (index != _line_index || horizontal != _line_horizontal) {
+		_line_index = index;
+		_line_horizontal = horizontal;
+		redraw_overlay();
+	}
+}
+
+void Main_Window::clear_row_column_line() {
+	if (_line_index < 0) { return; }
+	_line_index = -1;
+	cursor(FL_CURSOR_DEFAULT);
+	redraw_overlay();
+}
+
+void Main_Window::row_column_cb(Fl_Menu_ *m, Main_Window *mw) {
+	mw->_row_column_tb->value(m->mvalue()->value());
+	mw->clear_row_column_line();
+	mw->redraw();
+}
+
+void Main_Window::row_column_tb_cb(Toolbar_Toggle_Button *, Main_Window *mw) {
+	if (mw->_row_column_tb->value()) { mw->_row_column_mi->set(); }
+	else { mw->_row_column_mi->clear(); }
+	mw->clear_row_column_line();
+	mw->redraw();
 }
 
 // The map and its events have to match each other (resizing a map also moves its events).
@@ -2667,6 +2746,7 @@ void Main_Window::update_icons() {
 	Image::make_deimage(_hex_tb);
 	Image::make_deimage(_show_priority_tb);
 	Image::make_deimage(_gameboy_screen_tb);
+	Image::make_deimage(_row_column_tb);
 	Image::make_deimage(_show_events_tb);
 	Image::make_deimage(_show_warp_ids_tb);
 	Image::make_deimage(_blocks_mode_tb);
@@ -4013,6 +4093,19 @@ void Main_Window::change_block_cb(Block *b, Main_Window *mw) {
 		return;
 	}
 	if (!mw->_map_editable || mw->_mode != Mode::BLOCKS) { return; }
+	if (mw->row_column_tool() && Fl::event_button() == FL_LEFT_MOUSE) {
+		// The Row and Column Tool inserts a row or column at the line under the mouse,
+		// and does not place blocks
+		if (Fl::event() == FL_PUSH) {
+			mw->update_row_column_line(b);
+			if (mw->_line_index >= 0) {
+				bool horizontal = mw->_line_horizontal;
+				int at = mw->_line_index;
+				mw->edit_map_shape_at(horizontal ? Map::Edit::INSERT_ROW : Map::Edit::INSERT_COLUMN, at);
+			}
+		}
+		return;
+	}
 	if (Fl::event_button() == FL_LEFT_MOUSE) {
 		if (!mw->_selected) { return; }
 		if (Fl::event_is_click()) {

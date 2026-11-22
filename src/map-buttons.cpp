@@ -210,14 +210,17 @@ int Block::handle(int event) {
 		}
 		mw->update_status(this);
 		mw->update_gameboy_screen(this);
+		mw->update_row_column_line(this);
 		return 1;
 	case FL_LEAVE:
 		mw->update_status((Block *)NULL);
 		mw->update_gameboy_screen((Block *)NULL);
+		mw->clear_row_column_line();
 		redraw();
 		return 1;
 	case FL_MOVE:
 		mw->update_event_cursor(this);
+		mw->update_row_column_line(this);
 		if (mw->mode() == Mode::EVENTS && mw->gameboy_screen()) {
 			mw->update_gameboy_screen(this);
 		}

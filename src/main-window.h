@@ -65,7 +65,7 @@ private:
 		*_undo_tb, *_redo_tb, *_add_sub_tb, *_resize_tb, *_change_tileset_tb, *_change_roof_tb, *_edit_tileset_tb,
 		*_edit_roof_tb, *_load_palettes_tb, *_edit_current_palettes_tb;
 	Toolbar_Toggle_Button *_grid_tb, *_rulers_tb, *_zoom_tb, *_ids_tb, *_hex_tb, *_show_events_tb, *_show_warp_ids_tb,
-		*_show_priority_tb, *_gameboy_screen_tb;
+		*_show_priority_tb, *_gameboy_screen_tb, *_row_column_tb;
 	Toolbar_Radio_Button *_blocks_mode_tb, *_events_mode_tb;
 	Dropdown *_palettes;
 	// GUI outputs
@@ -77,7 +77,8 @@ private:
 		*_save_as_mi = NULL, *_save_map_mi = NULL, *_save_blockset_mi = NULL, *_save_tileset_mi = NULL,
 		*_save_roof_mi = NULL, *_save_event_script_mi = NULL, *_print_mi = NULL;
 	Fl_Menu_Item *_undo_mi = NULL, *_redo_mi = NULL, *_copy_block_mi = NULL, *_paste_block_mi = NULL, *_swap_block_mi = NULL;
-	Fl_Menu_Item *_insert_row_mi = NULL, *_delete_row_mi = NULL, *_insert_column_mi = NULL, *_delete_column_mi = NULL;
+	Fl_Menu_Item *_insert_row_mi = NULL, *_delete_row_mi = NULL, *_insert_column_mi = NULL, *_delete_column_mi = NULL,
+		*_row_column_mi = NULL;
 	Fl_Menu_Item *_resize_blockset_mi = NULL, *_resize_map_mi = NULL, *_change_tileset_mi = NULL, *_change_roof_mi = NULL,
 		*_edit_tileset_mi = NULL, *_edit_roof_mi = NULL;
 	// Dialogs
@@ -111,6 +112,9 @@ private:
 	bool _gameboy_screen = false;
 	int _status_event_x, _status_event_y;
 	int _hover_row = -1, _hover_col = -1; // the last block the mouse was over, for Insert and Delete Row and Column
+	// The line between two rows or columns that the Row and Column Tool points at (-1 if none)
+	int _line_index = -1;
+	bool _line_horizontal = true;
 	// Metatile button properties
 	Metatile_Button *_metatile_buttons[MAX_NUM_METATILES];
 	Metatile_Button *_selected = NULL;
@@ -147,6 +151,9 @@ public:
 	inline bool show_collisions(void) const { return _show_collisions_mi && !!_show_collisions_mi->value(); }
 	inline bool has_passable_tiles(void) const { return !_passable_tiles.empty(); }
 	inline bool show_connections(void) const { return _show_connections_mi && !!_show_connections_mi->value(); }
+	inline bool row_column_tool(void) const { return _row_column_mi && !!_row_column_mi->value(); }
+	void update_row_column_line(Block *b);
+	void clear_row_column_line(void);
 	bool square_blocked(uint8_t block_id, int qx, int qy);
 	inline bool full_screen(void) const { return _full_screen_mi && !!_full_screen_mi->value(); }
 	inline Palettes palettes(void) const { return (Palettes)_palettes->value(); }
@@ -214,6 +221,7 @@ private:
 	void force_add_sub_metatiles(size_t s, size_t n);
 	void resize_map(int w, int h);
 	void edit_map_shape(Map::Edit e);
+	void edit_map_shape_at(Map::Edit e, int at);
 	bool save_map(bool force);
 	bool save_metatileset(void);
 	bool save_tileset(void);
@@ -305,6 +313,7 @@ private:
 	static void delete_row_cb(Fl_Widget *w, Main_Window *mw);
 	static void insert_column_cb(Fl_Widget *w, Main_Window *mw);
 	static void delete_column_cb(Fl_Widget *w, Main_Window *mw);
+	static void row_column_cb(Fl_Menu_ *m, Main_Window *mw);
 	static void change_tileset_cb(Fl_Widget *w, Main_Window *mw);
 	static void change_roof_cb(Fl_Widget *w, Main_Window *mw);
 	static void edit_tileset_cb(Fl_Widget *w, Main_Window *mw);
@@ -332,6 +341,7 @@ private:
 	static void hex_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
 	static void show_priority_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
 	static void gameboy_screen_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
+	static void row_column_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
 	static void show_events_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
 	static void show_warp_ids_tb_cb(Toolbar_Toggle_Button *tb, Main_Window *mw);
 	static void palettes_cb(Dropdown *dd, Main_Window *mw);

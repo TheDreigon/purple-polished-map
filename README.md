@@ -13,6 +13,7 @@ All credit for Polished Map goes to Rangi and its contributors. The license ([LG
 - **build-windows.bat** builds it on Windows from the command line, with only the Build Tools for Visual Studio 2022.
 - It has its own name, version, executable (**purple-polished-map.exe**) and settings file, so it can be used side by side with the original without sharing settings.
 - **Edit > Insert Row** and the other three commands next to it insert or delete a whole row or column of the map where the mouse is (Ctrl+Insert, Ctrl+Delete, and with Shift for columns), moving the blocks and events after it.
+- The **Row and Column Tool** (a toolbar button, or Ctrl+Shift+I) shows the line between two rows or columns under the mouse, and a click inserts a row or column there.
 - Right-clicking an empty spot in Events Mode adds a new event.
 - In pokered and pokeyellow projects, the map shows where its hidden objects are (read-only, from data/events/hidden_objects.asm).
 - **View > Highlight Unused** puts stripes over the blocks the map does not use and, in the tileset editor, over the tiles no block uses.

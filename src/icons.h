@@ -33,6 +33,7 @@
 #include "events.xpm"
 #include "add-sub.xpm"
 #include "resize.xpm"
+#include "row-column.xpm"
 #include "change.xpm"
 #include "change-roof.xpm"
 #include "tileset.xpm"
@@ -76,6 +77,7 @@ static Smooth_Icon BLOCKS_DARK_ICON(BLOCKS_DARK_XPM);
 static Smooth_Icon EVENTS_ICON(EVENTS_XPM);
 static Smooth_Icon ADD_SUB_ICON(ADD_SUB_XPM);
 static Smooth_Icon RESIZE_ICON(RESIZE_XPM);
+static Smooth_Icon ROW_COLUMN_ICON(ROW_COLUMN_XPM);
 static Smooth_Icon CHANGE_ICON(CHANGE_XPM);
 static Smooth_Icon CHANGE_ROOF_ICON(CHANGE_ROOF_XPM);
 static Smooth_Icon TILESET_ICON(TILESET_XPM);
