@@ -107,6 +107,7 @@ private:
 	Map _map;
 	Map_Events _map_events;
 	std::vector<Hidden_Object_Marker *> _hidden_object_markers;
+	std::string _hidden_objects_file, _hidden_objects_map; // where they were read from, and for which map constant
 	std::vector<Connection_View *> _connection_views;
 	std::vector<bool> _passable_tiles; // empty when the project does not say
 	bool _gameboy_screen = false;
@@ -173,6 +174,9 @@ public:
 	inline int max_ruler_x(void) const { return _map.size() ? (int)_map.max_event_x() : INT_MAX; }
 	inline int max_ruler_y(void) const { return _map.size() ? (int)_map.max_event_y() : INT_MAX; }
 	bool unsaved(void) const;
+	bool hidden_objects_moved(void) const;
+	bool has_event_at(int16_t x, int16_t y) const;
+	void drag_hidden_object(Hidden_Object_Marker *m);
 	inline std::unordered_map<uint8_t, int>::const_iterator metatile_hotkey(uint8_t id) const { return _metatile_hotkeys.find(id); }
 	inline std::unordered_map<uint8_t, int>::const_iterator no_hotkey(void) const { return _metatile_hotkeys.end(); }
 	inline std::unordered_map<int, uint8_t>::const_iterator hotkey_metatile(int key) const { return _hotkey_metatiles.find(key); }
@@ -212,6 +216,8 @@ private:
 	void view_event_script(Event *e);
 	void add_event_at(Block *b);
 	void load_hidden_objects(void);
+	void unload_hidden_objects(void);
+	bool save_hidden_objects(void);
 	void load_connections(void);
 	void resize_overlays(int x, int y, int s) const;
 	void load_palettes(const char *filename, const char *auto_option = NULL);

@@ -860,7 +860,40 @@ void Main_Window::apply_transparency() {
 
 bool Main_Window::unsaved() const {
 	return _map.modified() || _map_events.modified() || _metatileset.modified() ||
-		_metatileset.const_tileset().modified() || _metatileset.const_tileset().modified_roof();
+		_metatileset.const_tileset().modified() || _metatileset.const_tileset().modified_roof() ||
+		hidden_objects_moved();
+}
+
+bool Main_Window::hidden_objects_moved() const {
+	for (const Hidden_Object_Marker *marker : _hidden_object_markers) {
+		if (marker->object().moved()) { return true; }
+	}
+	return false;
+}
+
+bool Main_Window::has_event_at(int16_t x, int16_t y) const {
+	size_t n = _map_events.size();
+	for (size_t i = 0; i < n; i++) {
+		const Event *e = _map_events.event(i);
+		if (e->event_x() == x && e->event_y() == y) { return true; }
+	}
+	return false;
+}
+
+// Left-drag a hidden object to move it to the square under the mouse, inside the map
+void Main_Window::drag_hidden_object(Hidden_Object_Marker *m) {
+	if (_mode != Mode::EVENTS || !_map.size()) { return; }
+	int s = m->w();
+	if (s <= 0) { return; }
+	int ox = Fl::event_x() - _map_group->x() - EVENT_MARGIN * s, oy = Fl::event_y() - _map_group->y() - EVENT_MARGIN * s;
+	int rx = ox / s - (ox < 0), ry = oy / s - (oy < 0);
+	int16_t hx = (int16_t)std::clamp(rx, 0, (int)_map.width() * 2 - 1);
+	int16_t hy = (int16_t)std::clamp(ry, 0, (int)_map.height() * 2 - 1);
+	// A drag that stays on the same square changes nothing
+	if (hx == m->object().x && hy == m->object().y) { return; }
+	m->coords(hx, hy);
+	m->reposition(_map_group->x(), _map_group->y(), s);
+	redraw_map();
 }
 
 const char *Main_Window::modified_filename() {
@@ -871,6 +904,9 @@ const char *Main_Window::modified_filename() {
 	if (_map_events.modified()) {
 		if (_asm_file.empty()) { return NEW_MAP_NAME; }
 		return fl_filename_name(_asm_file.c_str());
+	}
+	if (hidden_objects_moved()) {
+		return fl_filename_name(_hidden_objects_file.c_str());
 	}
 	static char buffer[FL_PATH_MAX] = {};
 	const Tileset &tileset = _metatileset.const_tileset();
@@ -1629,9 +1665,12 @@ void Main_Window::unload_events() {
 }
 
 // pokered and pokeyellow list hidden objects (hidden items, PCs, bookshelves...) apart from
-// the map's events, in data/events/hidden_objects.asm. Show where they are, read-only.
+// the map's events, in data/events/hidden_objects.asm. Show where they are; they can be dragged
+// in Events Mode, and File > Save writes where they moved to.
 void Main_Window::load_hidden_objects() {
 	_hidden_object_markers.clear(); // the old ones went away with the map's widgets
+	_hidden_objects_file.clear();
+	_hidden_objects_map.clear();
 	if (_blk_file.empty()) { return; }
 	char filename[FL_PATH_MAX] = {}, map_name[FL_PATH_MAX] = {}, map_constant[FL_PATH_MAX] = {};
 	Config::hidden_objects_path(filename, _directory.c_str());
@@ -1641,6 +1680,8 @@ void Main_Window::load_hidden_objects() {
 
 	std::vector<Hidden_Object> objects;
 	if (!read_hidden_objects(filename, map_constant, objects)) { return; }
+	_hidden_objects_file = filename;
+	_hidden_objects_map = map_constant;
 	for (const Hidden_Object &object : objects) {
 		Hidden_Object_Marker *marker = new Hidden_Object_Marker(object);
 		marker->user_data(this);
@@ -1648,6 +1689,56 @@ void Main_Window::load_hidden_objects() {
 		_hidden_object_markers.push_back(marker);
 	}
 	resize_overlays(_map_group->x(), _map_group->y(), metatile_size() / 2);
+}
+
+void Main_Window::unload_hidden_objects() {
+	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		_map_group->remove(marker);
+		delete marker;
+	}
+	_hidden_object_markers.clear();
+	_hidden_objects_file.clear();
+	_hidden_objects_map.clear();
+}
+
+// Writes where the hidden objects moved to. Returns false if nothing could be written.
+bool Main_Window::save_hidden_objects() {
+	if (!hidden_objects_moved()) { return true; }
+	std::vector<Hidden_Object> objects;
+	for (const Hidden_Object_Marker *marker : _hidden_object_markers) {
+		objects.push_back(marker->object());
+	}
+	std::vector<std::string> written, warnings;
+	std::string error;
+	if (!write_hidden_objects(_hidden_objects_file.c_str(), _hidden_objects_map.c_str(), objects, written, warnings, error)) {
+		_error_dialog->message(error);
+		_error_dialog->show(this);
+		return false;
+	}
+	for (size_t i = 0; i < objects.size(); i++) {
+		_hidden_object_markers[i]->object(objects[i]);
+	}
+	redraw_map();
+
+	std::string msg = "Saved ";
+	for (size_t i = 0; i < written.size(); i++) {
+		if (i) { msg += i + 1 < written.size() ? ", " : " and "; }
+		msg += written[i];
+	}
+	msg += "!";
+	if (warnings.empty()) {
+		_success_dialog->message(msg);
+		_success_dialog->show(this);
+	}
+	else {
+		msg += "\n\nCheck these by hand:";
+		for (const std::string &w : warnings) {
+			msg += "\n\n" + w;
+		}
+		_warning_dialog->message(msg);
+		_warning_dialog->show(this);
+	}
+	return true;
 }
 
 // Places the hidden object markers and connection views over the map; s is the size of
@@ -2139,8 +2230,13 @@ void Main_Window::resize_map(int w, int h) {
 		}
 		_map_group->add(e);
 	}
-	// The hidden objects stay where their file puts them
+	// The hidden objects move along with the events
 	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		if ((px || py) && marker->object().movable) {
+			int16_t hx = (int16_t)std::clamp((int)marker->object().x + px * 2, 0, (int)UINT8_MAX);
+			int16_t hy = (int16_t)std::clamp((int)marker->object().y + py * 2, 0, (int)UINT8_MAX);
+			marker->coords(hx, hy);
+		}
 		_map_group->add(marker);
 	}
 	// The connections depend on the map's size, so they are made again below
@@ -2176,8 +2272,8 @@ void Main_Window::resize_map(int w, int h) {
 
 // Inserts or deletes a whole row or column at the block under the mouse (or the last block it
 // was over): a new row goes above that block and a new column to its left, both starting as a
-// copy of that block's row or column. The blocks and events after it move along. Like Resize
-// Map, this cannot be undone, and the map's size in map_constants.asm has to be changed by hand.
+// copy of that block's row or column. The blocks, events and hidden objects after it move along.
+// The map's size in map_constants.asm has to be changed by hand.
 void Main_Window::edit_map_shape(Map::Edit e) {
 	if (!_map.size()) { return; }
 	Block *hovered = dynamic_cast<Block *>(Fl::belowmouse());
@@ -2244,12 +2340,18 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at, bool toward_start) {
 			_map_events.modified(true);
 		}
 	}
+	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
+		int16_t hx = marker->object().x, hy = marker->object().y;
+		if (marker->object().movable && Map::edited_event_coords(e, at, hx, hy)) {
+			marker->coords(hx, hy);
+		}
+	}
 	int s = toward_start ? metatile_size() : 0;
 	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
 	rebuild_map_widgets(nw, nh, blocks, unused, rows ? 0 : s, rows ? s : 0);
 }
 
-// Where the events are, for Undo and Redo of changes of size
+// Where the events are, followed by the hidden objects, for Undo and Redo of changes of size
 Map::Event_Coords Main_Window::event_coords() const {
 	Map::Event_Coords coords;
 	size_t n = _map_events.size();
@@ -2257,11 +2359,14 @@ Map::Event_Coords Main_Window::event_coords() const {
 		const Event *ev = _map_events.event(i);
 		coords.emplace_back(ev->event_x(), ev->event_y());
 	}
+	for (const Hidden_Object_Marker *marker : _hidden_object_markers) {
+		coords.emplace_back(marker->object().x, marker->object().y);
+	}
 	return coords;
 }
 
 // Undo or Redo of a change of size: rebuilds the map as the snapshot has it, and puts the events
-// back where they were then (if they are still the same events)
+// and hidden objects back where they were then (if they are still the same ones)
 void Main_Window::apply_snapshot(const Map::Snapshot &s) {
 	clear_row_column_line();
 	std::vector<Block *> old_blocks(_map.size());
@@ -2283,14 +2388,19 @@ void Main_Window::apply_snapshot(const Map::Snapshot &s) {
 		unused.push_back(old_blocks[i]);
 	}
 
-	if (s.has_events && s.events.size() == _map_events.size()) {
-		for (size_t i = 0; i < s.events.size(); i++) {
+	size_t ne = _map_events.size();
+	if (s.has_events && s.events.size() == ne + _hidden_object_markers.size()) {
+		for (size_t i = 0; i < ne; i++) {
 			Event *ev = _map_events.event(i);
 			if (ev->event_x() != s.events[i].first || ev->event_y() != s.events[i].second) {
 				ev->coords(s.events[i].first, s.events[i].second);
 				ev->update_tooltip();
 				_map_events.modified(true);
 			}
+		}
+		for (size_t i = 0; i < _hidden_object_markers.size(); i++) {
+			const std::pair<int16_t, int16_t> &c = s.events[ne + i];
+			_hidden_object_markers[i]->coords(c.first, c.second);
 		}
 	}
 	rebuild_map_widgets(s.width, s.height, blocks, unused);
@@ -2315,7 +2425,6 @@ void Main_Window::rebuild_map_widgets(int nw, int nh, const std::vector<Block *>
 	for (size_t i = 0; i < n; i++) {
 		_map_group->add(_map_events.event(i));
 	}
-	// The hidden objects stay where their file puts them
 	for (Hidden_Object_Marker *marker : _hidden_object_markers) {
 		_map_group->add(marker);
 	}
@@ -3029,6 +3138,8 @@ void Main_Window::close_cb(Fl_Widget *, Main_Window *mw) {
 	mw->_metatile_hotkeys.clear();
 	mw->_map_group->clear();
 	mw->_hidden_object_markers.clear(); // deleted with the other widgets of the map
+	mw->_hidden_objects_file.clear();
+	mw->_hidden_objects_map.clear();
 	mw->_connection_views.clear();
 	mw->_hover_row = mw->_hover_col = -1;
 	mw->_passable_tiles.clear();
@@ -3068,6 +3179,10 @@ void Main_Window::save_cb(Fl_Widget *w, Main_Window *mw) {
 	}
 	if (mw->_map_events.modified()) {
 		save_event_script_cb(w, mw);
+		other_modified = true;
+	}
+	if (mw->hidden_objects_moved()) {
+		mw->save_hidden_objects();
 		other_modified = true;
 	}
 	if (other_modified && !mw->_map.modified()) { return; }
@@ -3118,6 +3233,22 @@ void Main_Window::save_as_cb(Fl_Widget *, Main_Window *mw) {
 		if (mw->_unsaved_dialog->canceled()) { return; }
 	}
 
+	// Likewise, the hidden objects on screen belong to the map they were read for
+	char hidden_path[FL_PATH_MAX] = {}, map_name[FL_PATH_MAX] = {}, map_constant[FL_PATH_MAX] = {};
+	Config::hidden_objects_path(hidden_path, directory);
+	remove_dot_ext(filename, map_name);
+	Config::map_constant(map_constant, map_name);
+	bool other_maps_hidden = !same_path(mw->_hidden_objects_file.c_str(), hidden_path) || mw->_hidden_objects_map != map_constant;
+	if (other_maps_hidden && mw->hidden_objects_moved()) {
+		std::string msg = "The hidden objects have been moved!\n\n";
+		msg = msg + "They belong to " + mw->_hidden_objects_map + ", not to " + basename + ",\n"
+			"and their changes will be lost.\n\n"
+			"Save the map as " + basename + " anyway?";
+		mw->_unsaved_dialog->message(msg);
+		mw->_unsaved_dialog->show(mw);
+		if (mw->_unsaved_dialog->canceled()) { return; }
+	}
+
 	std::string old_directory(mw->_directory), old_blk_file(mw->_blk_file);
 	std::string old_label(mw->label() ? mw->label() : "");
 
@@ -3148,6 +3279,12 @@ void Main_Window::save_as_cb(Fl_Widget *, Main_Window *mw) {
 			mw->load_events(events_path);
 		}
 		mw->update_active_controls();
+		mw->redraw();
+	}
+
+	if (other_maps_hidden) {
+		mw->unload_hidden_objects();
+		mw->load_hidden_objects();
 		mw->redraw();
 	}
 }
