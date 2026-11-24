@@ -691,7 +691,9 @@ Main_Window::Main_Window(int x, int y, int w, int h, const char *) : Fl_Overlay_
 	_resize_tb->callback((Fl_Callback *)resize_cb, this);
 	_resize_tb->image(RESIZE_ICON);
 
-	_row_column_tb->tooltip("Row and Column Tool (Ctrl+Shift+I): click between two rows or columns to insert one\n(a copy of the row below or column to the right; Shift+click: of the row above or column to the left)");
+	_row_column_tb->tooltip("Row and Column Tool (Ctrl+Shift+I): click between two rows or columns to insert one\n"
+		"(a copy of the row below or column to the right; Shift+click: of the row above or column to the left)\n"
+		"Right-click to delete the row below or column to the right (Shift+right-click: above or to the left)");
 	_row_column_tb->callback((Fl_Callback *)row_column_tb_cb, this);
 	_row_column_tb->image(ROW_COLUMN_ICON);
 	_row_column_tb->value(row_column_tool());
@@ -931,7 +933,7 @@ void Main_Window::draw_overlay() {
 		fl_pop_clip();
 	}
 	if (_line_index >= 0 && row_column_tool() && _map.size()) {
-		// The line between two rows or columns where the Row and Column Tool would insert one
+		// The line between two rows or columns where the Row and Column Tool would insert or delete one
 		int ms = metatile_size();
 		int mx = _map_group->x() + MAP_MARGIN * ms, my = _map_group->y() + MAP_MARGIN * ms;
 		int mw = (int)_map.width() * ms, mh = (int)_map.height() * ms;
@@ -2292,7 +2294,8 @@ void Main_Window::edit_map_shape(Map::Edit e) {
 // Inserts a row or column before row or column "at" (after the last one if "at" is past it),
 // or deletes row or column "at". A new row or column copies the one after it, and the view keeps
 // what is before it in place; toward_start makes it copy the one before it, and the view keep
-// what is after it in place, so the map seems to grow upward or to the left.
+// what is after it in place, so the map seems to grow upward or to the left. A deletion keeps
+// what is before it in place too, or with toward_start, what is after it.
 void Main_Window::edit_map_shape_at(Map::Edit e, int at, bool toward_start) {
 	if (!_map.size()) { return; }
 	int w = _map.width(), h = _map.height(), nw, nh;
@@ -2346,7 +2349,8 @@ void Main_Window::edit_map_shape_at(Map::Edit e, int at, bool toward_start) {
 			marker->coords(hx, hy);
 		}
 	}
-	int s = toward_start ? metatile_size() : 0;
+	bool inserting = e == Map::Edit::INSERT_ROW || e == Map::Edit::INSERT_COLUMN;
+	int s = toward_start ? (inserting ? metatile_size() : -metatile_size()) : 0;
 	bool rows = e == Map::Edit::INSERT_ROW || e == Map::Edit::DELETE_ROW;
 	rebuild_map_widgets(nw, nh, blocks, unused, rows ? 0 : s, rows ? s : 0);
 }
@@ -2411,7 +2415,8 @@ void Main_Window::apply_snapshot(const Map::Snapshot &s) {
 // resized, but its Undo history is kept.
 void Main_Window::rebuild_map_widgets(int nw, int nh, const std::vector<Block *> &blocks, const std::vector<Block *> &unused,
 	int scroll_dx, int scroll_dy) {
-	int scroll_x = _map_scroll->xposition() + scroll_dx, scroll_y = _map_scroll->yposition() + scroll_dy;
+	int scroll_x = std::max(_map_scroll->xposition() + scroll_dx, 0);
+	int scroll_y = std::max(_map_scroll->yposition() + scroll_dy, 0);
 	while (_map_group->children()) {
 		_map_group->remove(0);
 	}
@@ -2480,7 +2485,7 @@ void Main_Window::delete_column_cb(Fl_Widget *, Main_Window *mw) {
 
 // With the Row and Column Tool on, pointing at the map picks the line between two rows or two
 // columns nearest to the mouse (the map's outer edges included), and a click inserts a row or
-// column there. Only in Blocks Mode.
+// column there, or a right-click deletes one next to it. Only in Blocks Mode.
 void Main_Window::update_row_column_line(Block *b) {
 	if (!b || !row_column_tool() || _mode != Mode::BLOCKS) {
 		clear_row_column_line();
@@ -4309,16 +4314,25 @@ void Main_Window::change_block_cb(Block *b, Main_Window *mw) {
 		return;
 	}
 	if (!mw->_map_editable || mw->_mode != Mode::BLOCKS) { return; }
-	if (mw->row_column_tool() && Fl::event_button() == FL_LEFT_MOUSE) {
-		// The Row and Column Tool inserts a row or column at the line under the mouse,
-		// and does not place blocks
+	if (mw->row_column_tool() && (Fl::event_button() == FL_LEFT_MOUSE || Fl::event_button() == FL_RIGHT_MOUSE)) {
+		// The Row and Column Tool inserts (click) or deletes (right-click) a row or column at the
+		// line under the mouse, and does not place or select blocks
 		if (Fl::event() == FL_PUSH) {
 			mw->update_row_column_line(b);
 			if (mw->_line_index >= 0) {
-				bool horizontal = mw->_line_horizontal;
+				bool horizontal = mw->_line_horizontal, toward_start = Fl::event_shift() != 0;
 				int at = mw->_line_index;
-				// Shift+click copies the row above or the column to the left instead
-				mw->edit_map_shape_at(horizontal ? Map::Edit::INSERT_ROW : Map::Edit::INSERT_COLUMN, at, Fl::event_shift() != 0);
+				if (Fl::event_button() == FL_LEFT_MOUSE) {
+					// Shift+click copies the row above or the column to the left instead
+					mw->edit_map_shape_at(horizontal ? Map::Edit::INSERT_ROW : Map::Edit::INSERT_COLUMN, at, toward_start);
+				}
+				else {
+					// Right-click deletes the row below or the column to the right of the line, and
+					// Shift+right-click the one above or to the left; at an outer edge, the one next to it
+					int n = horizontal ? mw->_map.height() : mw->_map.width();
+					at = std::clamp(toward_start ? at - 1 : at, 0, n - 1);
+					mw->edit_map_shape_at(horizontal ? Map::Edit::DELETE_ROW : Map::Edit::DELETE_COLUMN, at, toward_start);
+				}
 			}
 		}
 		return;
